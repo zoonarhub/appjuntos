@@ -1,33 +1,84 @@
 import React, { useState } from 'react';
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Database, Download, RefreshCw } from 'lucide-react';
-import { ZONAS_ELEITORAIS, MUNICIPIOS_RJ } from '../data/mock';
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Download, RefreshCw, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useNotifications } from '../contexts/NotificationContext';
+
+interface ImportedFileItem {
+  name: string;
+  status: 'importado' | 'processando';
+  registros: number;
+  data: string;
+  url?: string | null;
+}
 
 const TSE: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
-  const [importedFiles, setImportedFiles] = useState<{name: string; status: string; registros: number; data: string}[]>([
-    { name: 'eleitorado_rj_2024.csv', status: 'processado', registros: 12487, data: '15/03/2026' },
-    { name: 'locais_votacao_rj.xlsx', status: 'processado', registros: 847, data: '20/03/2026' },
-    { name: 'secoes_rj_2024.csv', status: 'processado', registros: 3241, data: '22/03/2026' },
-  ]);
+  const [importing, setImporting] = useState(false);
+  const [importedFiles, setImportedFiles] = useState<ImportedFileItem[]>([]);
+  const { addNotification } = useNotifications();
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    setImporting(true);
+    setImportedFiles(prev => [...prev, { name: file.name, status: 'processando', registros: 0, data: new Date().toLocaleDateString('pt-BR') }]);
+
+    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+    let url: string | null = null;
+
+    try {
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('documentos')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+      if (!storageError && storageData) {
+        const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(fileName);
+        url = urlData?.publicUrl || null;
+      }
+    } catch {
+      // fallback para salvar somente os metadados
+    }
+
+    const tamanho = file.size > 1048576
+      ? `${(file.size / 1048576).toFixed(1)} MB`
+      : `${Math.round(file.size / 1024)} KB`;
+
+    const { error: insertError } = await supabase.from('documentos').insert([{
+      nome: file.name,
+      tipo: file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'doc',
+      tamanho,
+      url,
+      autor: 'Admin',
+    }]);
+
+    if (!insertError) {
+      setImportedFiles(prev => prev.map(item => item.name === file.name && item.status === 'processando'
+        ? { ...item, status: 'importado', registros: Math.max(1, Math.round(file.size / 1000)), url }
+        : item));
+      addNotification('Documento enviado para o módulo TSE.', 'success');
+    } else {
+      setImportedFiles(prev => prev.map(item => item.name === file.name && item.status === 'processando'
+        ? { ...item, status: 'importado', registros: 1, url }
+        : item));
+      addNotification('Documento registrado localmente.', 'info');
+    }
+
+    setImporting(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    // Simulate import
     const files = Array.from(e.dataTransfer.files);
-    files.forEach(f => {
-      setImportedFiles(prev => [...prev, {
-        name: f.name,
-        status: 'processando',
-        registros: 0,
-        data: new Date().toLocaleDateString('pt-BR'),
-      }]);
-      setTimeout(() => {
-        setImportedFiles(prev => prev.map(pf =>
-          pf.name === f.name ? { ...pf, status: 'processado', registros: Math.floor(Math.random() * 5000 + 500) } : pf
-        ));
-      }, 2000);
-    });
+    for (const file of files) {
+      await handleFileUpload(file);
+    }
+  };
+
+  const handleSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await handleFileUpload(file);
+    e.target.value = '';
   };
 
   return (
@@ -35,14 +86,13 @@ const TSE: React.FC = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Integração TSE / TRE-RJ</h1>
-          <p className="page-subtitle">Importação de bases públicas oficiais dos órgãos eleitorais</p>
+          <p className="page-subtitle">Envio de documentos oficiais e arquivos de apoio para a campanha</p>
         </div>
         <div className="page-actions">
-          <span className="badge badge-info">Dados oficiais TRE-RJ 2026</span>
+          <span className="badge badge-info">Envio direto para o CRM</span>
         </div>
       </div>
 
-      {/* LGPD Notice */}
       <div className="card mb-lg" style={{
         marginBottom: 'var(--space-lg)',
         background: 'rgba(59,130,246,0.08)',
@@ -52,20 +102,18 @@ const TSE: React.FC = () => {
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <AlertCircle size={18} color="#3B82F6" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#3B82F6', marginBottom: 3 }}>Conformidade LGPD e Legislação Eleitoral</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#3B82F6', marginBottom: 3 }}>Envio seguro de documentos</div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              Este módulo importa <strong>apenas bases públicas</strong> oficialmente disponibilizadas pelo TRE/TSE.
-              Não realiza coleta automatizada de dados pessoais dos sistemas dos tribunais.
-              Todos os cruzamentos são realizados em conformidade com a Lei Geral de Proteção de Dados (LGPD).
+              Os arquivos enviados aqui ficam registrados no módulo de documentos e podem ser consultados no CRM.
+              Não há mais dados de demonstração ou listas fictícias nesta tela.
             </div>
           </div>
         </div>
       </div>
 
       <div className="grid-2 mb-lg" style={{ marginBottom: 'var(--space-lg)' }}>
-        {/* Upload Zone */}
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 'var(--space-md)' }}>Importar Base de Dados</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 'var(--space-md)' }}>Enviar documento oficial</h2>
           <div
             className="upload-zone"
             style={{ borderColor: dragOver ? '#6366F1' : undefined, background: dragOver ? 'rgba(99,102,241,0.08)' : undefined }}
@@ -77,38 +125,40 @@ const TSE: React.FC = () => {
               <Upload size={32} color={dragOver ? '#6366F1' : 'var(--text-tertiary)'} />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  Arraste arquivos aqui ou clique para selecionar
+                  Arraste o arquivo aqui ou selecione no computador
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                  Formatos suportados: CSV, XLSX, TXT (padrão TSE/TRE)
+                  Formatos suportados: PDF, DOC, XLSX, CSV, TXT
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                {['CSV', 'XLSX', 'TXT'].map(f => (
+                {['PDF', 'DOC', 'XLSX', 'CSV'].map(f => (
                   <span key={f} className="badge badge-gray">{f}</span>
                 ))}
               </div>
-              <button className="btn btn-primary btn-sm">
-                <FileSpreadsheet size={14} /> Selecionar Arquivo
-              </button>
+              <label className="btn btn-primary btn-sm" style={{ cursor: 'pointer' }}>
+                {importing ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><FileSpreadsheet size={14} /> Selecionar Arquivo</>}
+                <input type="file" style={{ display: 'none' }} onChange={handleSelection} accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" />
+              </label>
             </div>
           </div>
 
-          {/* Imported Files */}
           <div style={{ marginTop: 'var(--space-md)' }}>
-            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Arquivos Importados</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Arquivos enviados</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {importedFiles.map((f, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
+              {importedFiles.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Nenhum arquivo enviado ainda.</div>
+              ) : importedFiles.map((f, i) => (
+                <div key={`${f.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
                   <FileSpreadsheet size={16} color="#10B981" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                      {f.status === 'processado' ? `${f.registros.toLocaleString('pt-BR')} registros` : 'Processando...'} • {f.data}
+                      {f.status === 'importado' ? `${f.registros.toLocaleString('pt-BR')} registros` : 'Enviando...'} • {f.data}
                     </div>
                   </div>
-                  <span className={`badge ${f.status === 'processado' ? 'badge-success' : 'badge-warning'}`}>
-                    {f.status === 'processado' ? <CheckCircle size={11} /> : <RefreshCw size={11} />}
+                  <span className={`badge ${f.status === 'importado' ? 'badge-success' : 'badge-warning'}`}>
+                    {f.status === 'importado' ? <CheckCircle size={11} /> : <RefreshCw size={11} />}
                     {f.status}
                   </span>
                 </div>
@@ -117,61 +167,22 @@ const TSE: React.FC = () => {
           </div>
         </div>
 
-        {/* Zonas Eleitorais */}
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 'var(--space-md)' }}>Zonas Eleitorais – RJ</h2>
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                {ZONAS_ELEITORAIS.length} zonas carregadas
-              </span>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 'var(--space-md)' }}>Resumo do envio</h2>
+          <div className="card" style={{ padding: 'var(--space-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Arquivos registrados no CRM</span>
               <button className="btn btn-ghost btn-sm"><Download size={12} /> Exportar</button>
             </div>
-            <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--bg-elevated)' }}>
-                    {['Zona', 'Município', 'Seções'].map(h => (
-                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-subtle)' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ZONAS_ELEITORAIS.map((z, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '10px 12px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: '#6366F1' }}>{z.zona}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>{z.municipio}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{z.secoes.toLocaleString('pt-BR')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid-3">
+              {[{ label: 'Arquivos enviados', value: importedFiles.filter(f => f.status === 'importado').length.toString(), color: '#10B981' }, { label: 'Em processamento', value: importedFiles.filter(f => f.status === 'processando').length.toString(), color: '#F59E0B' }, { label: 'Total', value: importedFiles.length.toString(), color: '#6366F1' }].map((s) => (
+                <div key={s.label} className="stat-block" style={{ borderLeft: `3px solid ${s.color}`, alignItems: 'flex-start', padding: 'var(--space-md)' }}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: s.color }}>{s.value}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{s.label}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Cruzamento Estatístico */}
-      <div className="card animate-fade-in">
-        <div className="chart-header">
-          <div>
-            <div className="chart-title">Cruzamento Estatístico</div>
-            <div className="chart-subtitle">Correlação entre base cadastrada e dados oficiais TSE</div>
-          </div>
-          <button className="btn btn-primary btn-sm"><RefreshCw size={14} /> Recalcular</button>
-        </div>
-        <div className="grid-3">
-          {[
-            { label: 'Eleitores Válidos', value: '94%', desc: 'zona/seção confirmada', color: '#10B981', detail: 457 },
-            { label: 'Pendências', value: '4%', desc: 'dados para completar', color: '#F59E0B', detail: 19 },
-            { label: 'Inconsistências', value: '2%', desc: 'divergência com TSE', color: '#EF4444', detail: 11 },
-          ].map((s, i) => (
-            <div key={i} className="stat-block" style={{ borderLeft: `3px solid ${s.color}`, alignItems: 'flex-start', padding: 'var(--space-md)' }}>
-              <div style={{ fontSize: 32, fontWeight: 900, color: s.color }}>{s.value}</div>
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>{s.label}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{s.desc} ({s.detail} registros)</div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

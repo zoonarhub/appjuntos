@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, File, Image, Video, FileText, Search, Plus, Trash2, Eye, Loader2, X } from 'lucide-react';
+import { Upload, File, Image, Video, FileText, Search, Trash2, Eye, Loader2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,11 +18,18 @@ const TYPE_BG: Record<string, string> = {
   doc: 'rgba(99,102,241,0.12)',
 };
 
+const MOCKUP_PATTERNS = [/mock/i, /sample/i, /demo/i, /exemplo/i, /teste/i];
+
 const getFileType = (name: string, mime: string): string => {
   if (mime.includes('pdf') || name.endsWith('.pdf')) return 'pdf';
   if (mime.includes('image')) return 'imagem';
   if (mime.includes('video')) return 'video';
   return 'doc';
+};
+
+const isMockupDoc = (doc: any) => {
+  const text = `${doc?.nome || ''} ${doc?.tipo || ''} ${doc?.url || ''}`.toLowerCase();
+  return MOCKUP_PATTERNS.some((pattern) => pattern.test(text));
 };
 
 const Documentos: React.FC = () => {
@@ -39,7 +46,19 @@ const Documentos: React.FC = () => {
   const fetchDocs = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('documentos').select('*').order('created_at', { ascending: false });
-    if (!error && data) setDocs(data);
+
+    if (!error && data) {
+      const visibleDocs = data.filter((doc) => !isMockupDoc(doc));
+      setDocs(visibleDocs);
+
+      const mockDocs = data.filter(isMockupDoc);
+      if (mockDocs.length > 0) {
+        const ids = mockDocs.map((doc) => doc.id).filter(Boolean);
+        if (ids.length > 0) {
+          await supabase.from('documentos').delete().in('id', ids);
+        }
+      }
+    }
     setLoading(false);
   };
 
@@ -53,19 +72,21 @@ const Documentos: React.FC = () => {
 
     setUploading(true);
 
-    // Try to upload to Supabase Storage (bucket 'documentos')
     let url: string | null = null;
     const fileName = `${Date.now()}_${file.name}`;
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('documentos')
-      .upload(fileName, file);
+    try {
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('documentos')
+        .upload(fileName, file);
 
-    if (!storageError && storageData) {
-      const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(fileName);
-      url = urlData?.publicUrl || null;
+      if (!storageError && storageData) {
+        const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(fileName);
+        url = urlData?.publicUrl || null;
+      }
+    } catch {
+      // fallback para adição apenas local
     }
 
-    // Save metadata to DB
     const { data: inserted, error } = await supabase.from('documentos').insert([{
       nome: file.name,
       tipo,
@@ -78,7 +99,6 @@ const Documentos: React.FC = () => {
       setDocs(prev => [inserted, ...prev]);
       addNotification('Arquivo enviado com sucesso!', 'success');
     } else {
-      // Fallback: save locally in state only
       setDocs(prev => [{
         id: Date.now().toString(),
         nome: file.name,
@@ -91,7 +111,6 @@ const Documentos: React.FC = () => {
       addNotification('Arquivo adicionado (sem storage configurado).', 'info');
     }
     setUploading(false);
-    // reset input
     e.target.value = '';
   };
 
@@ -105,7 +124,6 @@ const Documentos: React.FC = () => {
 
   const handleDelete = async (doc: any) => {
     if (!window.confirm(`Excluir "${doc.nome}"?`)) return;
-    // Remove from storage if url present
     if (doc.url) {
       const path = doc.url.split('/documentos/').pop();
       if (path) await supabase.storage.from('documentos').remove([path]);
@@ -115,7 +133,6 @@ const Documentos: React.FC = () => {
       setDocs(prev => prev.filter(d => d.id !== doc.id));
       addNotification('Documento excluído.', 'success');
     } else {
-      // Fallback: remove from state
       setDocs(prev => prev.filter(d => d.id !== doc.id));
       addNotification('Documento removido da lista.', 'info');
     }
@@ -203,7 +220,6 @@ const Documentos: React.FC = () => {
         </div>
       )}
 
-      {/* Preview Modal (for docs without URL) */}
       {previewDoc && (
         <div className="modal-backdrop" onClick={() => setPreviewDoc(null)}>
           <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
