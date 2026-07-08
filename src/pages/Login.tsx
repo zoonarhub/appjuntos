@@ -16,7 +16,7 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  if (dbUser?.status_acesso && !dbUser?.senha_temporaria) {
+  if (dbUser?.status_acesso && dbUser?.senha !== '123456') {
     return <Navigate to="/" replace />;
   }
 

@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuditUser(existingUser.id, existingUser.nome);
       localStorage.setItem(SESSION_KEY, JSON.stringify(existingUser));
       // If first login with temp password, signal it
-      if (existingUser.senha === '123456' || existingUser.senha_temporaria) {
+      if (existingUser.senha === '123456') {
         return { error: 'CHANGE_PASSWORD' };
       }
       return {};
@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       const { data: newUser, error: createError } = await supabase
         .from('usuarios')
-        .insert([{ cpf: cleanCpf, nome: `Usuário ${cleanCpf}`, senha, status_acesso: false, role: 'Liderança', senha_temporaria: true }])
+        .insert([{ cpf: cleanCpf, nome: `Usuário ${cleanCpf}`, senha, status_acesso: false, role: 'Liderança' }])
         .select()
         .single();
 
@@ -106,12 +106,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { error } = await supabase
       .from('usuarios')
-      .update({ senha: newPassword, senha_temporaria: false })
+      .update({ senha: newPassword })
       .eq('id', dbUser.id);
 
     if (error) return { error: 'Erro ao atualizar senha: ' + error.message };
 
-    const updated = { ...dbUser, senha: newPassword, senha_temporaria: false };
+    const updated = { ...dbUser, senha: newPassword };
     setDbUser(updated);
     localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
     return {};
