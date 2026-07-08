@@ -3,6 +3,7 @@ import { Building2, Plus, Search, MapPin, Users, Target, Layers, Edit2, Trash2, 
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
+import { saveWithOfflineFallback } from '../lib/offlineHelper';
 
 const STATUS_BADGE: Record<string, string> = {
   ativo: 'badge-success',
@@ -47,23 +48,19 @@ const Nucleos: React.FC = () => {
     setSubmitting(true);
     try {
       if (isEditing && selectedNucleo) {
-        const { error } = await supabase.from('nucleos').update(formData).eq('id', selectedNucleo.id);
-        if (!error) {
-          addNotification('Núcleo atualizado com sucesso', 'success');
-          fetchNucleos();
+        const result = await saveWithOfflineFallback('nucleos', formData, selectedNucleo.id, 'UPDATE');
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Salvo localmente (offline). Sincroniza ao conectar.' : 'Núcleo atualizado com sucesso', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchNucleos();
           setShowModal(false);
-        } else {
-          addNotification('Erro ao atualizar núcleo', 'error');
-        }
+        } else { addNotification('Erro ao atualizar: ' + result.error, 'error'); }
       } else {
-        const { error } = await supabase.from('nucleos').insert([formData]);
-        if (!error) {
-          addNotification('Núcleo cadastrado com sucesso', 'success');
-          fetchNucleos();
+        const result = await saveWithOfflineFallback('nucleos', formData);
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Salvo localmente (offline). Sincroniza ao conectar.' : 'Núcleo cadastrado com sucesso!', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchNucleos();
           setShowModal(false);
-        } else {
-          addNotification('Erro ao cadastrar núcleo', 'error');
-        }
+        } else { addNotification('Erro ao cadastrar: ' + result.error, 'error'); }
       }
     } finally {
       setSubmitting(false);

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Bell, Plus, Sun, Moon, LogOut, User, Settings, ChevronRight } from 'lucide-react';
+import { Search, Bell, Sun, Moon, LogOut, User, Settings, ChevronRight, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { supabase } from '../../lib/supabase';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/': 'Dashboard',
@@ -40,6 +41,15 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileFormData, setProfileFormData] = useState({ nome: dbUser?.nome || '', senha: '' });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const up = () => setIsOnline(true);
+    const down = () => setIsOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, []);
 
   const title = ROUTE_TITLES[location.pathname] || 'Coordena Rio CRM';
   const now = new Date();
@@ -73,6 +83,22 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
 
       {/* Actions */}
       <div className="header-actions">
+        {/* Online Status Indicator */}
+        <div
+          title={isOnline ? 'Online — dados sincronizados com Supabase' : 'Offline — dados salvos localmente'}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 11, fontWeight: 600,
+            color: isOnline ? '#10B981' : '#F59E0B',
+            background: isOnline ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+            border: `1px solid ${isOnline ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`,
+            borderRadius: 20, padding: '3px 10px',
+          }}
+        >
+          {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+          {isOnline ? 'Online' : 'Offline'}
+        </div>
+
         {/* Theme Toggle */}
         <button
           className="header-action-btn"

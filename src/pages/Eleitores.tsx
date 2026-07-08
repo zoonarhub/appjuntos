@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Phone, Download, CheckCircle, XCircle, HelpCircle, AlertCircle, Edit2, Trash2, MapPin, Loader2, Link2 } from 'lucide-react';
+import { Search, Plus, Phone, Download, CheckCircle, XCircle, HelpCircle, AlertCircle, Edit2, Trash2, MapPin, Loader2, Link2, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
+import { saveWithOfflineFallback } from '../lib/offlineHelper';
 
 const VOTO_CONFIG: Record<string, any> = {
   sim: { label: 'Confirmou', color: 'var(--success)', badge: 'badge-success', icon: <CheckCircle size={13} /> },
@@ -62,24 +63,32 @@ const Eleitores: React.FC = () => {
     const payload = { ...formData };
     try {
       if (isEditing && selectedPerson) {
-        const { error } = await supabase.from('eleitores').update(payload).eq('id', selectedPerson.id);
-        if (!error) { addNotification('Eleitor atualizado com sucesso', 'success'); fetchEleitores(); setShowModal(false); }
-        else addNotification('Erro ao atualizar eleitor', 'error');
-    } else {
-      // Prevenir duplicados (CPF)
-      if (payload.cpf) {
-        const { data: existing } = await supabase.from('eleitores').select('id').eq('cpf', payload.cpf).single();
-        if (existing) {
-          addNotification('Já existe um eleitor com este CPF.', 'error');
-          return;
+        const result = await saveWithOfflineFallback('eleitores', payload, selectedPerson.id, 'UPDATE');
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Atualização salva localmente (sem internet). Será sincronizada depois.' : 'Eleitor atualizado com sucesso', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchEleitores();
+          setShowModal(false);
+        } else {
+          addNotification('Erro ao atualizar eleitor: ' + result.error, 'error');
+        }
+      } else {
+        // Prevenir duplicados (CPF) somente quando online
+        if (payload.cpf && navigator.onLine) {
+          const { data: existing } = await supabase.from('eleitores').select('id').eq('cpf', payload.cpf).single();
+          if (existing) {
+            addNotification('Já existe um eleitor com este CPF.', 'error');
+            return;
+          }
+        }
+        const result = await saveWithOfflineFallback('eleitores', payload);
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Eleitor salvo localmente (sem internet). Será sincronizado quando a conexão voltar.' : 'Eleitor cadastrado com sucesso!', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchEleitores();
+          setShowModal(false);
+        } else {
+          addNotification('Erro ao cadastrar eleitor: ' + result.error, 'error');
         }
       }
-
-      }
-
-      const { error } = await supabase.from('eleitores').insert([payload]);
-      if (!error) { addNotification('Eleitor cadastrado com sucesso', 'success'); fetchEleitores(); setShowModal(false); }
-      else addNotification('Erro ao cadastrar eleitor', 'error');
     } finally {
       setSubmitting(false);
     }

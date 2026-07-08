@@ -3,6 +3,7 @@ import { Search, Plus, Download, Eye, Edit2, Trash2, Phone, MapPin, Loader2 } fr
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
+import { saveWithOfflineFallback } from '../lib/offlineHelper';
 
 const TIPOS = ['Todos', 'Liderança', 'Voluntário'];
 const STATUS = ['Todos', 'ativo', 'inativo'];
@@ -15,7 +16,7 @@ const TIPO_COLORS: Record<string, string> = {
   'Voluntário': 'badge-warning',
 };
 
-const Pessoas: React.FC = () => {
+const Liderancas: React.FC = () => {
   const [pessoas, setPessoas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -62,29 +63,30 @@ const Pessoas: React.FC = () => {
     
     try {
       if (isEditing && selectedPerson) {
-        const { error } = await supabase.from('liderancas').update(formData).eq('id', selectedPerson.id);
-        if (!error) {
-          addNotification('Liderança atualizada com sucesso', 'success');
-          fetchPessoas();
+        const result = await saveWithOfflineFallback('liderancas', formData, selectedPerson.id, 'UPDATE');
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Salvo localmente (offline). Sincroniza quando conectar.' : 'Liderança atualizada com sucesso', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchPessoas();
           setShowModal(false);
         } else {
-          addNotification('Erro ao atualizar', 'error');
+          addNotification('Erro ao atualizar: ' + result.error, 'error');
         }
       } else {
-      // Prevenir duplicados (CPF)
-      const { data: existing } = await supabase.from('liderancas').select('id').eq('cpf', formData.cpf).single();
-      if (existing) {
-        addNotification('Já existe um cadastro com este CPF.', 'error');
-        return;
-      }
-
-        const { error } = await supabase.from('liderancas').insert([formData]);
-        if (!error) {
-          addNotification('Pessoa cadastrada com sucesso', 'success');
-          fetchPessoas();
+        // Prevenir duplicados (CPF) somente quando online
+        if (navigator.onLine) {
+          const { data: existing } = await supabase.from('liderancas').select('id').eq('cpf', formData.cpf).single();
+          if (existing) {
+            addNotification('Já existe um cadastro com este CPF.', 'error');
+            return;
+          }
+        }
+        const result = await saveWithOfflineFallback('liderancas', formData);
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Salvo localmente (offline). Sincroniza quando conectar.' : 'Pessoa cadastrada com sucesso!', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchPessoas();
           setShowModal(false);
         } else {
-          addNotification('Erro ao cadastrar', 'error');
+          addNotification('Erro ao cadastrar: ' + result.error, 'error');
         }
       }
     } finally {

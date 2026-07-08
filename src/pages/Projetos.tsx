@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, BookOpen, Users, GraduationCap, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { saveWithOfflineFallback } from '../lib/offlineHelper';
 
 const STATUS_BADGE: Record<string, string> = {
   ativo: 'badge-success',
@@ -55,16 +56,17 @@ const Projetos: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
-
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('projetos').insert([formData]);
-      if (!error) {
+      const result = await saveWithOfflineFallback('projetos', formData);
+      if (result.success) {
         setShowCreate(false);
         setFormData({ nome: '', nucleo_id: '', categoria: 'Educação', responsavel: '', descricao: '', status: 'ativo' });
-        fetchProjetos();
+        if (!result.savedLocally) fetchProjetos();
+        // Show notification via window title hack since no notification context here
+        if (result.savedLocally) alert('Projeto salvo localmente (offline). Será sincronizado quando conectar.');
       } else {
-        alert('Erro ao criar: ' + error.message);
+        alert('Erro ao criar projeto: ' + result.error);
       }
     } finally {
       setSubmitting(false);

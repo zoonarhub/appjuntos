@@ -3,6 +3,7 @@ import { Search, Plus, Download, Eye, Edit2, Trash2, Phone, MapPin, Loader2 } fr
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
+import { saveWithOfflineFallback } from '../lib/offlineHelper';
 
 const TIPOS = ['Todos', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'];
 const STATUS = ['Todos', 'ativo', 'inativo'];
@@ -62,29 +63,30 @@ const Coordenadores: React.FC = () => {
     
     try {
       if (isEditing && selectedPerson) {
-        const { error } = await supabase.from('coordenadores').update(formData).eq('id', selectedPerson.id);
-        if (!error) {
-          addNotification('Coordenador atualizado com sucesso', 'success');
-          fetchCoordenadores();
+        const result = await saveWithOfflineFallback('coordenadores', formData, selectedPerson.id, 'UPDATE');
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Salvo localmente (offline). Sincroniza quando conectar.' : 'Coordenador atualizado com sucesso', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchCoordenadores();
           setShowModal(false);
         } else {
-          addNotification('Erro ao atualizar', 'error');
+          addNotification('Erro ao atualizar: ' + result.error, 'error');
         }
       } else {
-      // Prevenir duplicados (CPF)
-      const { data: existing } = await supabase.from('coordenadores').select('id').eq('cpf', formData.cpf).single();
-      if (existing) {
-        addNotification('Já existe um cadastro com este CPF.', 'error');
-        return;
-      }
-      
-        const { error } = await supabase.from('coordenadores').insert([formData]);
-        if (!error) {
-          addNotification('Coordenador cadastrado com sucesso', 'success');
-          fetchCoordenadores();
+        // Prevenir duplicados (CPF) somente quando online
+        if (navigator.onLine) {
+          const { data: existing } = await supabase.from('coordenadores').select('id').eq('cpf', formData.cpf).single();
+          if (existing) {
+            addNotification('Já existe um cadastro com este CPF.', 'error');
+            return;
+          }
+        }
+        const result = await saveWithOfflineFallback('coordenadores', formData);
+        if (result.success) {
+          addNotification(result.savedLocally ? 'Salvo localmente (offline). Sincroniza quando conectar.' : 'Coordenador cadastrado com sucesso!', result.savedLocally ? 'warning' : 'success');
+          if (!result.savedLocally) fetchCoordenadores();
           setShowModal(false);
         } else {
-          addNotification('Erro ao cadastrar', 'error');
+          addNotification('Erro ao cadastrar: ' + result.error, 'error');
         }
       }
     } finally {
