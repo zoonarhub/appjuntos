@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, HeartHandshake } from 'lucide-react';
+import BairroSelect from '../../components/ui/BairroSelect';
 
 const ConviteCoordenador: React.FC = () => {
   const { indicadoId } = useParams();
@@ -10,7 +11,7 @@ const ConviteCoordenador: React.FC = () => {
   
   const [formData, setFormData] = useState({
     nome: '', cpf: '', whatsapp: '', instagram: '',
-    cep: '', endereco: '', bairro: '', regiao: '', tipo: 'Regional'
+    cep: '', endereco: '', bairro: '', regiao: 'Rio de Janeiro', tipo: 'Regional'
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -122,7 +123,15 @@ const ConviteCoordenador: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 6 }}>BAIRRO *</label>
-                  <input required name="bairro" value={formData.bairro} onChange={handleChange} style={{ width: '100%', background: '#0B0C10', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: 10, color: '#fff', outline: 'none' }} placeholder="Seu bairro" />
+                  <BairroSelect
+                    value={formData.bairro}
+                    onChange={(value) => setFormData({ ...formData, bairro: value })}
+                    municipality={formData.regiao || 'Rio de Janeiro'}
+                    required
+                    className="form-input"
+                    style={{ width: '100%', background: '#0B0C10', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: 10, color: '#fff', outline: 'none' }}
+                    placeholder="Seu bairro"
+                  />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 6 }}>REGIÃO / CIDADE *</label>

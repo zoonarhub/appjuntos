@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Phone, Download, CheckCircle, XCircle, HelpCircle, AlertCircle, Edit2, Trash2, MapPin, Loader2, Link2, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import BairroSelect from '../components/ui/BairroSelect';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
 import { saveWithOfflineFallback } from '../lib/offlineHelper';
@@ -357,7 +358,14 @@ const Eleitores: React.FC = () => {
                     <div className="grid-3">
                       <div className="form-group">
                         <label className="form-label">Bairro *</label>
-                        <input required className="form-input" placeholder="Seu bairro" value={formData.bairro} onChange={e => setFormData({ ...formData, bairro: e.target.value })} />
+                        <BairroSelect
+                          value={formData.bairro}
+                          onChange={(value) => setFormData({ ...formData, bairro: value })}
+                          municipality={formData.municipio || 'Rio de Janeiro'}
+                          required
+                          className="form-input"
+                          placeholder="Seu bairro"
+                        />
                       </div>
                       <div className="form-group">
                         <label className="form-label">Região / Município *</label>

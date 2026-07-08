@@ -89,7 +89,7 @@ const Turmas: React.FC = () => {
     }
   };
 
-  const addStudent = () => {
+  const addStudent = async () => {
     const name = studentName.trim();
     if (!name) return;
 
@@ -100,17 +100,52 @@ const Turmas: React.FC = () => {
       presente: false,
     };
 
-    saveStudents([...students, newStudent]);
+    const nextStudents = [...students, newStudent];
+    saveStudents(nextStudents);
+    if (selectedTurma?.id) {
+      await syncStudentsToCrm(selectedTurma, nextStudents);
+    }
     setStudentName('');
     setStudentPhone('');
   };
 
-  const toggleAttendance = (studentId: string) => {
-    saveStudents(students.map((student) => student.id === studentId ? { ...student, presente: !student.presente } : student));
+  const toggleAttendance = async (studentId: string) => {
+    const nextStudents = students.map((student) => student.id === studentId ? { ...student, presente: !student.presente } : student);
+    saveStudents(nextStudents);
+    if (selectedTurma?.id) {
+      await syncStudentsToCrm(selectedTurma, nextStudents);
+    }
   };
 
   const removeStudent = (studentId: string) => {
     saveStudents(students.filter((student) => student.id !== studentId));
+  };
+
+  const syncStudentsToCrm = async (turma: any, nextStudents: any[]) => {
+    if (!turma?.id) return;
+
+    const validStudents = nextStudents.filter((student) => student?.nome?.trim());
+    if (validStudents.length === 0) return;
+
+    await Promise.allSettled(validStudents.map(async (student) => {
+      const payload = {
+        nome: student.nome.trim(),
+        whatsapp: student.telefone?.trim() || '',
+        telefone: student.telefone?.trim() || '',
+        origem: 'turma',
+        status: 'ativo',
+        municipio: 'Rio de Janeiro',
+        bairro: '',
+        dados_extras: {
+          turma_id: turma.id,
+          turma_nome: turma.nome,
+          presente: Boolean(student.presente),
+          fonte: 'turmas',
+        },
+      };
+
+      await supabase.from('eleitores').insert([payload]);
+    }));
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -120,20 +155,21 @@ const Turmas: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('turmas').insert([{
+      const { data: createdTurma, error } = await supabase.from('turmas').insert([{
         ...formData,
         projeto_id: selectedProjeto,
         professor: formData.professor || 'Não informado',
         alunos_matriculados: students.length || formData.alunos_matriculados || 0,
-      }]);
+      }]).select().single();
 
-      if (!error) {
+      if (!error && createdTurma) {
+        await syncStudentsToCrm(createdTurma, students);
         setShowCreate(false);
         setFormData({ nome: '', professor: '', horario: '', alunos_matriculados: 0, status: 'ativa' });
         setStudents([]);
         fetchTurmas();
       } else {
-        alert('Erro ao criar turma: ' + error.message);
+        alert('Erro ao criar turma: ' + error?.message);
       }
     } finally {
       setSubmitting(false);
@@ -143,11 +179,16 @@ const Turmas: React.FC = () => {
   const persistTurmaStudents = async () => {
     if (!selectedTurma?.id) return;
 
-    const { error } = await supabase.from('turmas').update({ alunos_matriculados: students.length }).eq('id', selectedTurma.id);
-    if (!error) {
-      fetchTurmas();
-      setShowStudentsModal(false);
+    try {
+      await supabase.from('turmas').update({ alunos_matriculados: students.length }).eq('id', selectedTurma.id);
+    } catch {
+      // ignora erro de sincronização e mantém a experiência local
     }
+
+    await syncStudentsToCrm(selectedTurma, students);
+    localStorage.setItem(`crm_turma_alunos_${selectedTurma.id}`, JSON.stringify(students));
+    fetchTurmas();
+    setShowStudentsModal(false);
   };
 
   const projNome = projetos.find((p) => p.id === selectedProjeto)?.nome || '';
@@ -184,6 +225,7 @@ const Turmas: React.FC = () => {
           {turmas.map((t) => (
             <div key={t.id} className="card relative group">
               <button
+                type="button"
                 onClick={async () => {
                   if (confirm('Excluir esta turma?')) {
                     await supabase.from('turmas').delete().eq('id', t.id);
@@ -234,7 +276,7 @@ const Turmas: React.FC = () => {
                   {projNome ? `Projeto: ${projNome}` : 'Selecione um projeto'}
                 </div>
               </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowCreate(false)}>✕</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowCreate(false)}>✕</button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="modal-body">
@@ -282,7 +324,7 @@ const Turmas: React.FC = () => {
                     <input className="form-input" placeholder="Nome do aluno" value={studentName} onChange={(e) => setStudentName(e.target.value)} />
                     <input className="form-input" placeholder="WhatsApp (opcional)" value={studentPhone} onChange={(e) => setStudentPhone(e.target.value)} />
                   </div>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addStudent}><Plus size={14} /> Cadastrar aluno</button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => { void addStudent(); }}><Plus size={14} /> Cadastrar aluno</button>
                   <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {students.length === 0 ? (
                       <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>Nenhum aluno cadastrado ainda.</div>
@@ -314,7 +356,7 @@ const Turmas: React.FC = () => {
                 <div className="modal-title">{attendanceMode === 'chamada' ? 'Chamada da turma' : 'Alunos da turma'}</div>
                 <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 4 }}>{selectedTurma.nome}</div>
               </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowStudentsModal(false)}>✕</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowStudentsModal(false)}>✕</button>
             </div>
 
             <div className="modal-body">
@@ -337,7 +379,7 @@ const Turmas: React.FC = () => {
                   <div key={student.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {attendanceMode === 'chamada' ? (
-                        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => toggleAttendance(student.id)}>
+                        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => { void toggleAttendance(student.id); }}>
                           {student.presente ? <UserCheck size={14} color="#10B981" /> : <Users size={14} />}
                         </button>
                       ) : (
@@ -356,7 +398,7 @@ const Turmas: React.FC = () => {
 
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setShowStudentsModal(false)}>Fechar</button>
-              <button type="button" className="btn btn-primary" onClick={persistTurmaStudents}><Save size={14} /> Salvar</button>
+              <button type="button" className="btn btn-primary" onClick={() => { void persistTurmaStudents(); }}><Save size={14} /> Salvar</button>
             </div>
           </div>
         </div>

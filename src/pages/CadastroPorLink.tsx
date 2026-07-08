@@ -6,6 +6,10 @@ import { useNotifications } from '../contexts/NotificationContext';
 const DEFAULT_PUBLIC_URL = 'https://appjuntos.vercel.app';
 
 const getPublicBaseUrl = () => {
+  const configuredUrl = import.meta.env.VITE_PUBLIC_APP_URL?.trim();
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, '');
+  }
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
@@ -16,6 +20,7 @@ const CadastroPorLink: React.FC = () => {
   const [coordenadores, setCoordenadores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const { addNotification } = useNotifications();
 
@@ -57,8 +62,21 @@ const CadastroPorLink: React.FC = () => {
     setGeneratingId(null);
   };
 
+  const handleCopyUrl = (key: string, url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedUrl(key);
+    addNotification('Link copiado!', 'success');
+    setTimeout(() => setCopiedUrl(null), 2500);
+  };
+
   const totalCadastros = coordenadores.reduce((s, c) => s + (c.total_indicados || 0), 0);
   const comLink = coordenadores.filter(c => c.link_token).length;
+  const publicLinks = [
+    { key: 'landing', label: 'Landing de captação', href: `${getPublicBaseUrl()}/convite/demo` },
+    { key: 'eleitor', label: 'Convite para eleitor', href: `${getPublicBaseUrl()}/convite/eleitor/demo` },
+    { key: 'lideranca', label: 'Convite para liderança', href: `${getPublicBaseUrl()}/convite/lideranca/demo` },
+    { key: 'coordenador', label: 'Convite para coordenador', href: `${getPublicBaseUrl()}/convite/coordenador/demo` },
+  ];
 
   return (
     <div>
@@ -101,6 +119,30 @@ const CadastroPorLink: React.FC = () => {
               {getPublicBaseUrl()}/convite/TOKEN
             </code>
           </div>
+        </div>
+      </div>
+
+      <div className="card mb-lg" style={{ marginBottom: 'var(--space-lg)', padding: 18 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
+          Links públicos de captura
+        </div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {publicLinks.map((link) => (
+            <div key={link.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: 10 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{link.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{link.href}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleCopyUrl(link.key, link.href)}>
+                  {copiedUrl === link.key ? <Check size={13} /> : <Copy size={13} />} Copiar
+                </button>
+                <a href={link.href} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                  <ExternalLink size={13} /> Abrir
+                </a>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
