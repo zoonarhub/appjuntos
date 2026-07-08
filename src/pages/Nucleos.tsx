@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
 import { saveWithOfflineFallback } from '../lib/offlineHelper';
+import BairroSelect from '../components/ui/BairroSelect';
 
 const STATUS_BADGE: Record<string, string> = {
   ativo: 'badge-success',
@@ -290,7 +291,13 @@ const Nucleos: React.FC = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Bairro</label>
-                    <input required className="form-input" value={formData.bairro} onChange={e => setFormData({...formData, bairro: e.target.value})} />
+                    <BairroSelect
+                      required
+                      value={formData.bairro}
+                      onChange={(value) => setFormData({ ...formData, bairro: value })}
+                      municipality={formData.municipio}
+                      className="form-input"
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Município</label>

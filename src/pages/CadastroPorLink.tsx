@@ -3,7 +3,14 @@ import { Link2, Copy, Check, QrCode, RefreshCw, ExternalLink, Loader2, Users, Tr
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 
-const BASE_URL = 'https://juntossomosmaisfortes.vercel.app';
+const DEFAULT_PUBLIC_URL = 'https://appjuntos.vercel.app';
+
+const getPublicBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return DEFAULT_PUBLIC_URL;
+};
 
 const CadastroPorLink: React.FC = () => {
   const [coordenadores, setCoordenadores] = useState<any[]>([]);
@@ -27,7 +34,7 @@ const CadastroPorLink: React.FC = () => {
   };
 
   const handleCopy = (token: string, id: string) => {
-    const link = `${BASE_URL}/convite/${token}`;
+    const link = `${getPublicBaseUrl()}/convite/${token}`;
     navigator.clipboard.writeText(link);
     setCopiedId(id);
     addNotification('Link copiado!', 'success');
@@ -64,7 +71,7 @@ const CadastroPorLink: React.FC = () => {
           <button className="btn btn-secondary btn-sm" onClick={fetchCoordenadores}>
             <RefreshCw size={14} /> Atualizar
           </button>
-          <a href={`${BASE_URL}/convite/demo`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+          <a href={`${getPublicBaseUrl()}/convite/demo`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
             <ExternalLink size={14} /> Ver Landing Page
           </a>
         </div>
@@ -91,7 +98,7 @@ const CadastroPorLink: React.FC = () => {
           <div style={{ flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>URL base</div>
             <code style={{ fontSize: 12, color: '#10B981', background: 'rgba(16,185,129,0.1)', padding: '4px 10px', borderRadius: 6 }}>
-              {BASE_URL}/convite/TOKEN
+              {getPublicBaseUrl()}/convite/TOKEN
             </code>
           </div>
         </div>
@@ -159,7 +166,7 @@ const CadastroPorLink: React.FC = () => {
                           border: '1px solid var(--border-subtle)', fontFamily: 'monospace',
                           maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           display: 'block',
-                        }} title={`${BASE_URL}/convite/${c.link_token}`}>
+                        }} title={`${getPublicBaseUrl()}/convite/${c.link_token}`}>
                           /convite/{c.link_token}
                         </code>
                       </div>
@@ -192,7 +199,7 @@ const CadastroPorLink: React.FC = () => {
                             {copiedId === c.id ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
                           </button>
                           <a
-                            href={`${BASE_URL}/convite/${c.link_token}`}
+                            href={`${getPublicBaseUrl()}/convite/${c.link_token}`}
                             target="_blank"
                             rel="noreferrer"
                             className="btn btn-ghost btn-sm btn-icon"

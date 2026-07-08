@@ -228,7 +228,9 @@ const Dashboard: React.FC = () => {
   };
 
   const getInviteLink = (type: string) => {
-    const baseUrl = 'https://appjuntos.vercel.app';
+    const baseUrl = typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://appjuntos.vercel.app';
     const identifier = encodeURIComponent(dbUser?.id || 'admin');
     return `${baseUrl}/convite/${type}/${identifier}`;
   };

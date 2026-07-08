@@ -17,7 +17,7 @@ const ORIGEM_BADGE: Record<string, string> = {
   manual: 'badge-gray',
 };
 
-const BASE_URL = 'https://juntossomosmaisfortes.vercel.app';
+const BASE_URL = 'https://appjuntos.vercel.app';
 
 const emptyForm = {
   nome: '', cpf: '', telefone: '', whatsapp: '', instagram: '',

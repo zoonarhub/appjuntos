@@ -3,7 +3,14 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { CheckCircle, Users, Heart, Shield, Star, ChevronRight, ChevronLeft, Loader2, MapPin, Phone, User, FileText, Hash } from 'lucide-react';
 
-const BASE_URL = 'https://juntossomosmaisfortes.vercel.app';
+const DEFAULT_PUBLIC_URL = 'https://appjuntos.vercel.app';
+
+const getPublicBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return DEFAULT_PUBLIC_URL;
+};
 
 // Star Rating component
 const StarRating: React.FC<{ value: number; onChange: (v: number) => void; label: string }> = ({ value, onChange, label }) => (
@@ -60,24 +67,40 @@ const LandingConvite: React.FC = () => {
   }, [token]);
 
   const fetchConvidador = async () => {
+    if (!token) {
+      setConvidador(null);
+      setLoadingConvidador(false);
+      return;
+    }
+
     setLoadingConvidador(true);
-    const { data } = await supabase
-      .from('coordenadores')
-      .select('id, nome, tipo, bairro, regiao')
-      .eq('link_token', token)
-      .single();
-    if (data) {
-      setConvidador(data);
-    } else {
-      // Try usuarios table
-      const { data: usr } = await supabase
-        .from('usuarios')
-        .select('id, nome, perfil, bairro')
+    try {
+      const { data } = await supabase
+        .from('coordenadores')
+        .select('id, nome, tipo, bairro, regiao, total_indicados')
         .eq('link_token', token)
         .single();
-      if (usr) setConvidador({ ...usr, tipo: usr.perfil || 'Liderança' });
+
+      if (data) {
+        setConvidador(data);
+      } else {
+        const { data: usr } = await supabase
+          .from('usuarios')
+          .select('id, nome, perfil, bairro')
+          .eq('link_token', token)
+          .single();
+
+        if (usr) {
+          setConvidador({ ...usr, tipo: usr.perfil || 'Liderança' });
+        } else {
+          setConvidador(null);
+        }
+      }
+    } catch {
+      setConvidador(null);
+    } finally {
+      setLoadingConvidador(false);
     }
-    setLoadingConvidador(false);
   };
 
   const buscarCep = async (cep: string) => {

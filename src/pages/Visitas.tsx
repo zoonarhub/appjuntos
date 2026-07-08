@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigation, Plus, Search, MapPin, Clock, CheckCircle, XCircle, Edit2, Trash2, Loader2, MessageSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
+import BairroSelect from '../components/ui/BairroSelect';
 
 const RESULTADO_CONFIG: Record<string, { label: string; badge: string; color: string }> = {
   positivo: { label: 'Positivo', badge: 'badge-success', color: '#10B981' },
@@ -224,7 +225,13 @@ const Visitas: React.FC = () => {
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Bairro</label>
-                  <input required className="form-input" value={formData.bairro} onChange={e => setFormData({...formData, bairro: e.target.value})} />
+                  <BairroSelect
+                    required
+                    value={formData.bairro}
+                    onChange={(value) => setFormData({ ...formData, bairro: value })}
+                    municipality={formData.municipio}
+                    className="form-input"
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Município</label>

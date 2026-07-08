@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CalendarDays, Plus, Clock, MapPin, Users, Search, Edit2, Trash2, Eye, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
+import BairroSelect from '../components/ui/BairroSelect';
 
 const TIPO_COLORS: Record<string, string> = {
   'Reunião': '#6366F1', 'Carreata': '#F59E0B', 'Caminhada': '#10B981',
@@ -291,7 +292,12 @@ const Eventos: React.FC = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Bairro</label>
-                    <input className="form-input" value={formData.bairro} onChange={e => setFormData({...formData, bairro: e.target.value})} />
+                    <BairroSelect
+                      value={formData.bairro}
+                      onChange={(value) => setFormData({ ...formData, bairro: value })}
+                      municipality={formData.municipio}
+                      className="form-input"
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Município</label>

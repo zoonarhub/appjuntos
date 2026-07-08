@@ -28,7 +28,7 @@ const navItems: NavItem[] = [
   { path: '/coordenadores', label: 'Coordenadores', icon: <Users size={16} />, section: 'CRM', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional'] },
   { path: '/liderancas', label: 'Lideranças', icon: <UserCheck size={16} />, section: 'CRM', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'] },
   { path: '/eleitores', label: 'Eleitores', icon: <Vote size={16} />, section: 'CRM', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local', 'Liderança'] },
-  { path: '/cadastro-link', label: 'Meu Link de Convite', icon: <Link2 size={16} />, section: 'CRM' }, // ALL roles
+  { path: '/cadastro-link', label: 'Links de Convite', icon: <Link2 size={16} />, section: 'CRM' }, // ALL roles
 
   // Territorial
   { path: '/nucleos', label: 'Núcleos', icon: <Building2 size={16} />, section: 'Territorial', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'] },
@@ -62,12 +62,18 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation();
   const { dbUser } = useAuth();
-  const userRole = dbUser?.role || 'Liderança';
+  const userRole = (dbUser?.role || 'Liderança').trim().toLowerCase();
+
+  const isRoleAllowed = (roles?: string[]) => {
+    if (!roles || roles.length === 0) return true;
+    return roles.some(role => {
+      const normalizedRole = role.trim().toLowerCase();
+      return normalizedRole === userRole || (normalizedRole === 'administrador' && userRole.includes('admin'));
+    });
+  };
 
   // Filter nav items based on user role
-  const visibleItems = navItems.filter(item =>
-    !item.roles || item.roles.includes(userRole)
-  );
+  const visibleItems = navItems.filter(item => isRoleAllowed(item.roles));
 
   const sections = Array.from(new Set(visibleItems.map(i => i.section)));
 
