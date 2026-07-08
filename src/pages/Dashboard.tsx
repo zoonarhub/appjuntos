@@ -101,7 +101,7 @@ const Dashboard: React.FC = () => {
     turmas: 0,
     visitas: 0,
     eventos: 0,
-    metaVotos: 85000,
+    metaVotos: 0,
   });
 
   // Monthly evolution (last 6 months eleitores count approximation)
@@ -130,6 +130,7 @@ const Dashboard: React.FC = () => {
         { count: nEvento },
         { data: eleitoresData },
         { data: coordData },
+        { data: liderData },
       ] = await Promise.all([
         supabase.from('coordenadores').select('*', { count: 'exact', head: true }),
         supabase.from('liderancas').select('*', { count: 'exact', head: true }),
@@ -140,8 +141,11 @@ const Dashboard: React.FC = () => {
         supabase.from('visitas').select('*', { count: 'exact', head: true }),
         supabase.from('eventos').select('*', { count: 'exact', head: true }),
         supabase.from('eleitores').select('status_voto, regiao, created_at'),
-        supabase.from('coordenadores').select('id, nome, regiao, tipo').limit(10),
+        supabase.from('coordenadores').select('id, nome, regiao, tipo, votos, meta').order('votos', { ascending: false }).limit(10),
+        supabase.from('liderancas').select('id, nome, regiao, tipo, votos, meta'),
       ]);
+
+      const metaVotos = [...(coordData || []), ...(liderData || [])].reduce((sum: number, item: any) => sum + Number(item.meta || 0), 0);
 
       setCounts({
         coordenadores: nCoord || 0,
@@ -152,7 +156,7 @@ const Dashboard: React.FC = () => {
         turmas: nTurma || 0,
         visitas: nVisita || 0,
         eventos: nEvento || 0,
-        metaVotos: 85000,
+        metaVotos,
       });
 
       // Build monthly evolution from eleitores created_at (last 6 months)
@@ -203,14 +207,16 @@ const Dashboard: React.FC = () => {
         setPorRegiao(regiaoArr);
       }
 
-      // Top coordenadores
+      // Top coordenadores com dados reais
       if (coordData) {
-        const top = coordData.map((c: any, i: number) => ({
-          ...c,
-          votos: Math.round(Math.random() * 800 + 100),
-          meta: 1000,
-          iniciaisAvatar: c.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() || 'CO',
-        })).sort((a: any, b: any) => b.votos - a.votos);
+        const top = coordData
+          .map((c: any) => ({
+            ...c,
+            votos: Number(c.votos || 0),
+            meta: Number(c.meta || 0),
+            iniciaisAvatar: c.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() || 'CO',
+          }))
+          .sort((a: any, b: any) => b.votos - a.votos);
         setTopCoordenadores(top);
       }
     } catch (err) {
