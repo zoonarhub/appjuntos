@@ -39,11 +39,15 @@ const ConviteLideranca: React.FC = () => {
         if (error.code === '23505') {
           alert('Este CPF já está cadastrado conosco.');
         } else {
+          console.error('Erro ao inserir liderança:', error.message);
           alert('Erro ao enviar: ' + error.message);
         }
       } else {
         setSuccess(true);
       }
+    } catch (err: any) {
+      console.error('Erro inesperado:', err);
+      alert('Erro inesperado ao salvar. Tente novamente.');
     } finally {
       setSubmitting(false);
     }

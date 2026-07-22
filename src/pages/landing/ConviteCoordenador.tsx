@@ -29,22 +29,27 @@ const ConviteCoordenador: React.FC = () => {
         whatsapp: formData.whatsapp,
         bairro: formData.bairro,
         regiao: formData.regiao,
+        municipio: 'Rio de Janeiro',
         tipo: `Coordenador ${formData.tipo}`,
         indicado_por: indicadoId || 'Admin',
         meta: formData.tipo === 'Geral' ? 500 : formData.tipo === 'Regional' ? 250 : 100,
         votos: 0,
-        status: 'Ativo'
+        status: 'ativo'
       }]);
 
       if (error) {
         if (error.code === '23505') {
           alert('Este CPF já está cadastrado conosco.');
         } else {
+          console.error('Erro ao inserir coordenador:', error.message);
           alert('Erro ao enviar: ' + error.message);
         }
       } else {
         setSuccess(true);
       }
+    } catch (err: any) {
+      console.error('Erro inesperado:', err);
+      alert('Erro inesperado ao salvar. Tente novamente.');
     } finally {
       setSubmitting(false);
     }

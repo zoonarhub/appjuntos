@@ -144,45 +144,75 @@ const LandingConvite: React.FC = () => {
     e.preventDefault();
     setSubmitting(true);
 
-    const payload: any = {
-      nome: formData.nome,
-      cpf: formData.cpf.replace(/\D/g, ''),
-      whatsapp: formData.whatsapp.replace(/\D/g, ''),
-      telefone: formData.whatsapp.replace(/\D/g, ''),
-      cep: formData.cep.replace(/\D/g, ''),
-      endereco: formData.endereco,
-      titulo_eleitor: formData.titulo_eleitor || null,
-      zona_eleitoral: formData.zona_eleitoral || null,
-      secao_eleitoral: formData.secao_eleitoral || null,
-      confirmou_voto: 'indeciso',
-      origem: 'landing',
-      status: 'pendente',
-      dados_extras: {
-        instagram: formData.instagram.startsWith('@') ? formData.instagram : (formData.instagram ? '@' + formData.instagram : ''),
+    try {
+      const instagramValue = formData.instagram
+        ? (formData.instagram.startsWith('@') ? formData.instagram : '@' + formData.instagram)
+        : null;
+
+      const payload: any = {
+        nome: formData.nome,
+        cpf: formData.cpf.replace(/\D/g, ''),
+        whatsapp: formData.whatsapp.replace(/\D/g, ''),
+        telefone: formData.whatsapp.replace(/\D/g, ''),
+        cep: formData.cep.replace(/\D/g, ''),
+        endereco: formData.endereco,
+        instagram: instagramValue,
+        titulo_eleitor: formData.titulo_eleitor || null,
+        zona_eleitoral: formData.zona_eleitoral || null,
+        secao_eleitoral: formData.secao_eleitoral || null,
         nota_ruas: pesquisa.nota_ruas || null,
         nota_iluminacao: pesquisa.nota_iluminacao || null,
         nota_seguranca: pesquisa.nota_seguranca || null,
         nota_saude: pesquisa.nota_saude || null,
         necessidade_principal: pesquisa.necessidade_principal || null,
+        confirmou_voto: 'indeciso',
+        origem: 'landing',
+        status: 'pendente',
+      };
+
+      if (convidador?.id) {
+        payload.indicado_por = convidador.id;
       }
-    };
 
-    if (convidador?.id) {
-      payload.indicado_por = convidador.id;
+      const { error } = await supabase.from('eleitores').insert([payload]);
+
+      if (error) {
+        // If full payload fails (columns missing), try minimal payload
+        console.warn('Insert com campos extras falhou, tentando payload mínimo:', error.message);
+        const minimalPayload: any = {
+          nome: formData.nome,
+          cpf: formData.cpf.replace(/\D/g, ''),
+          telefone: formData.whatsapp.replace(/\D/g, ''),
+          confirmou_voto: 'indeciso',
+          status: 'pendente',
+        };
+        if (convidador?.id) {
+          minimalPayload.indicado_por = convidador.id;
+        }
+        const { error: error2 } = await supabase.from('eleitores').insert([minimalPayload]);
+        if (error2) {
+          console.error('Erro no insert mínimo:', error2.message);
+          alert('Erro ao salvar cadastro: ' + error2.message);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      if (!error && convidador?.id) {
+        // Increment total_indicados (best effort — ignore errors)
+        await supabase
+          .from('coordenadores')
+          .update({ total_indicados: (convidador.total_indicados || 0) + 1 })
+          .eq('id', convidador.id);
+      }
+
+      setSubmitting(false);
+      setStep('sucesso');
+    } catch (err: any) {
+      console.error('Erro inesperado no cadastro:', err);
+      alert('Erro inesperado ao salvar. Tente novamente.');
+      setSubmitting(false);
     }
-
-    const { error } = await supabase.from('eleitores').insert([payload]);
-
-    if (!error && convidador?.id) {
-      // Increment total_indicados (best effort — ignore errors)
-      await supabase
-        .from('coordenadores')
-        .update({ total_indicados: (convidador.total_indicados || 0) + 1 })
-        .eq('id', convidador.id);
-    }
-
-    setSubmitting(false);
-    setStep('sucesso');
   };
 
   const inputStyle: React.CSSProperties = {
