@@ -72,7 +72,9 @@ const CadastroPorLink: React.FC = () => {
   const totalCadastros = coordenadores.reduce((s, c) => s + (c.total_indicados || 0), 0);
   const comLink = coordenadores.filter(c => c.link_token).length;
   const publicLinks = [
-    { key: 'landing', label: 'Landing de captação (Público)', href: `${getPublicBaseUrl()}/convite/publico` },
+    { key: 'landing', label: 'Landing de captação (Eleitores)', href: `${getPublicBaseUrl()}/convite/publico` },
+    { key: 'lideranca', label: 'Convite para Lideranças', href: `${getPublicBaseUrl()}/convite/lideranca/publico` },
+    { key: 'coordenador', label: 'Convite para Coordenadores', href: `${getPublicBaseUrl()}/convite/coordenador/publico` },
   ];
 
   return (
