@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { MapPin, Phone, Shield, Heart, HeartHandshake, FileText, CheckCircle } from 'lucide-react';
 import BairroSelect from '../../components/ui/BairroSelect';
+import { saveWithOfflineFallback } from '../../lib/offlineHelper';
 
 const ConviteEleitor: React.FC = () => {
   const { indicadoId } = useParams();
@@ -28,31 +29,26 @@ const ConviteEleitor: React.FC = () => {
     setSubmitting(true);
     
     try {
-      // Create user entry
-      const { error } = await supabase.from('eleitores').insert([{
+      const payload = {
         nome: formData.nome,
         cpf: formData.cpf.replace(/\D/g, ''),
-        whatsapp: formData.whatsapp,
+        telefone: formData.whatsapp,
         instagram: formData.instagram,
         cep: formData.cep,
         endereco: formData.endereco,
         bairro: formData.bairro,
-        regiao: formData.regiao,
         indicado_por: indicadoId || 'Orgânico',
-        dados_extras: {
-          melhoria_seguranca: formData.pergunta1,
-          melhoria_infraestrutura: formData.pergunta2,
-          melhoria_saude: formData.pergunta3,
-          melhoria_educacao: formData.pergunta4,
-          maior_desafio: formData.pergunta5,
-        }
-      }]);
+        status: 'pendente',
+        confirmou_voto: 'indeciso'
+      };
 
-      if (error) {
-        if (error.code === '23505') {
+      const result = await saveWithOfflineFallback('eleitores', payload);
+
+      if (!result.success) {
+        if (result.error?.includes('23505') || result.error?.toLowerCase().includes('unique')) {
           alert('Este CPF já está cadastrado conosco.');
         } else {
-          alert('Erro ao enviar: ' + error.message);
+          alert('Erro ao enviar: ' + result.error);
         }
       } else {
         setSuccess(true);

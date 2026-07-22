@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, HeartHandshake } from 'lucide-react';
 import BairroSelect from '../../components/ui/BairroSelect';
+import { saveWithOfflineFallback } from '../../lib/offlineHelper';
 
 const ConviteLideranca: React.FC = () => {
   const { indicadoId } = useParams();
@@ -23,7 +24,7 @@ const ConviteLideranca: React.FC = () => {
     setSubmitting(true);
     
     try {
-      const { error } = await supabase.from('liderancas').insert([{
+      const payload = {
         nome: formData.nome,
         cpf: formData.cpf.replace(/\D/g, ''),
         whatsapp: formData.whatsapp,
@@ -33,14 +34,16 @@ const ConviteLideranca: React.FC = () => {
         meta: 50,
         votos: 0,
         status: 'Ativo'
-      }]);
+      };
 
-      if (error) {
-        if (error.code === '23505') {
+      const result = await saveWithOfflineFallback('liderancas', payload);
+
+      if (!result.success) {
+        if (result.error?.includes('23505') || result.error?.toLowerCase().includes('unique')) {
           alert('Este CPF já está cadastrado conosco.');
         } else {
-          console.error('Erro ao inserir liderança:', error.message);
-          alert('Erro ao enviar: ' + error.message);
+          console.error('Erro ao inserir liderança:', result.error);
+          alert('Erro ao enviar: ' + result.error);
         }
       } else {
         setSuccess(true);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { CheckCircle, Users, Heart, Shield, Star, ChevronRight, ChevronLeft, Loader2, MapPin, Phone, User, FileText, Hash } from 'lucide-react';
+import { saveWithOfflineFallback } from '../lib/offlineHelper';
 
 const DEFAULT_PUBLIC_URL = 'https://appjuntos.vercel.app';
 
@@ -174,11 +175,11 @@ const LandingConvite: React.FC = () => {
         payload.indicado_por = convidador.id;
       }
 
-      const { error } = await supabase.from('eleitores').insert([payload]);
+      const result = await saveWithOfflineFallback('eleitores', payload);
 
-      if (error) {
+      if (!result.success) {
         // If full payload fails (columns missing), try minimal payload
-        console.warn('Insert com campos extras falhou, tentando payload mínimo:', error.message);
+        console.warn('Insert com campos extras falhou, tentando payload mínimo:', result.error);
         const minimalPayload: any = {
           nome: formData.nome,
           cpf: formData.cpf.replace(/\D/g, ''),
@@ -189,21 +190,22 @@ const LandingConvite: React.FC = () => {
         if (convidador?.id) {
           minimalPayload.indicado_por = convidador.id;
         }
-        const { error: error2 } = await supabase.from('eleitores').insert([minimalPayload]);
-        if (error2) {
-          console.error('Erro no insert mínimo:', error2.message);
-          alert('Erro ao salvar cadastro: ' + error2.message);
+        const minResult = await saveWithOfflineFallback('eleitores', minimalPayload);
+        if (!minResult.success) {
+          console.error('Erro no insert mínimo:', minResult.error);
+          alert('Erro ao salvar cadastro: ' + minResult.error);
           setSubmitting(false);
           return;
         }
       }
 
-      if (!error && convidador?.id) {
+      if (result.success && convidador?.id) {
         // Increment total_indicados (best effort — ignore errors)
-        await supabase
+        supabase
           .from('coordenadores')
           .update({ total_indicados: (convidador.total_indicados || 0) + 1 })
-          .eq('id', convidador.id);
+          .eq('id', convidador.id)
+          .then(); // not waiting for it
       }
 
       setSubmitting(false);

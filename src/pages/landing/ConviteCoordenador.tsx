@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, HeartHandshake } from 'lucide-react';
 import BairroSelect from '../../components/ui/BairroSelect';
+import { saveWithOfflineFallback } from '../../lib/offlineHelper';
 
 const ConviteCoordenador: React.FC = () => {
   const { indicadoId } = useParams();
@@ -23,7 +24,7 @@ const ConviteCoordenador: React.FC = () => {
     setSubmitting(true);
     
     try {
-      const { error } = await supabase.from('coordenadores').insert([{
+      const payload = {
         nome: formData.nome,
         cpf: formData.cpf.replace(/\D/g, ''),
         whatsapp: formData.whatsapp,
@@ -35,14 +36,16 @@ const ConviteCoordenador: React.FC = () => {
         meta: formData.tipo === 'Geral' ? 500 : formData.tipo === 'Regional' ? 250 : 100,
         votos: 0,
         status: 'ativo'
-      }]);
+      };
 
-      if (error) {
-        if (error.code === '23505') {
+      const result = await saveWithOfflineFallback('coordenadores', payload);
+
+      if (!result.success) {
+        if (result.error?.includes('23505') || result.error?.toLowerCase().includes('unique')) {
           alert('Este CPF já está cadastrado conosco.');
         } else {
-          console.error('Erro ao inserir coordenador:', error.message);
-          alert('Erro ao enviar: ' + error.message);
+          console.error('Erro ao inserir coordenador:', result.error);
+          alert('Erro ao enviar: ' + result.error);
         }
       } else {
         setSuccess(true);

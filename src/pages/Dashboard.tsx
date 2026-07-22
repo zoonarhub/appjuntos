@@ -243,7 +243,11 @@ const Dashboard: React.FC = () => {
     const baseUrl = typeof window !== 'undefined' && window.location?.origin
       ? window.location.origin
       : 'https://appjuntos.vercel.app';
-    const identifier = encodeURIComponent(dbUser?.id || 'admin');
+    const identifier = encodeURIComponent(dbUser?.link_token || dbUser?.id || 'admin');
+    
+    if (type === 'landing') {
+      return `${baseUrl}/convite/${identifier}`;
+    }
     return `${baseUrl}/convite/${type}/${identifier}`;
   };
 
@@ -553,7 +557,7 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {[
-                { label: 'Convite para Eleitores (Juntos pelo Rio)', type: 'eleitor', color: '#10B981' },
+                { label: 'Convite para Eleitores (Juntos pelo Rio)', type: 'landing', color: '#10B981' },
                 { label: 'Convite para Lideranças', type: 'lideranca', color: '#8B5CF6' },
                 { label: 'Convite para Coordenadores', type: 'coordenador', color: '#6366F1' },
               ].map((link) => (
