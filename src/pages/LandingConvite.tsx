@@ -148,20 +148,23 @@ const LandingConvite: React.FC = () => {
       nome: formData.nome,
       cpf: formData.cpf.replace(/\D/g, ''),
       whatsapp: formData.whatsapp.replace(/\D/g, ''),
+      telefone: formData.whatsapp.replace(/\D/g, ''),
       cep: formData.cep.replace(/\D/g, ''),
       endereco: formData.endereco,
-      instagram: formData.instagram.startsWith('@') ? formData.instagram : '@' + formData.instagram,
       titulo_eleitor: formData.titulo_eleitor || null,
       zona_eleitoral: formData.zona_eleitoral || null,
       secao_eleitoral: formData.secao_eleitoral || null,
-      nota_ruas: pesquisa.nota_ruas || null,
-      nota_iluminacao: pesquisa.nota_iluminacao || null,
-      nota_seguranca: pesquisa.nota_seguranca || null,
-      nota_saude: pesquisa.nota_saude || null,
-      necessidade_principal: pesquisa.necessidade_principal || null,
       confirmou_voto: 'indeciso',
       origem: 'landing',
       status: 'pendente',
+      dados_extras: {
+        instagram: formData.instagram.startsWith('@') ? formData.instagram : (formData.instagram ? '@' + formData.instagram : ''),
+        nota_ruas: pesquisa.nota_ruas || null,
+        nota_iluminacao: pesquisa.nota_iluminacao || null,
+        nota_seguranca: pesquisa.nota_seguranca || null,
+        nota_saude: pesquisa.nota_saude || null,
+        necessidade_principal: pesquisa.necessidade_principal || null,
+      }
     };
 
     if (convidador?.id) {

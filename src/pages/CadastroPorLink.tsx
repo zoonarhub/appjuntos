@@ -72,10 +72,10 @@ const CadastroPorLink: React.FC = () => {
   const totalCadastros = coordenadores.reduce((s, c) => s + (c.total_indicados || 0), 0);
   const comLink = coordenadores.filter(c => c.link_token).length;
   const publicLinks = [
-    { key: 'landing', label: 'Landing de captação', href: `${getPublicBaseUrl()}/convite/demo` },
-    { key: 'eleitor', label: 'Convite para eleitor', href: `${getPublicBaseUrl()}/convite/eleitor/demo` },
-    { key: 'lideranca', label: 'Convite para liderança', href: `${getPublicBaseUrl()}/convite/lideranca/demo` },
-    { key: 'coordenador', label: 'Convite para coordenador', href: `${getPublicBaseUrl()}/convite/coordenador/demo` },
+    { key: 'landing', label: 'Landing de captação (Público)', href: `${getPublicBaseUrl()}/convite/publico` },
+    { key: 'eleitor', label: 'Convite para eleitor', href: `${getPublicBaseUrl()}/convite/eleitor/publico` },
+    { key: 'lideranca', label: 'Convite para liderança', href: `${getPublicBaseUrl()}/convite/lideranca/publico` },
+    { key: 'coordenador', label: 'Convite para coordenador', href: `${getPublicBaseUrl()}/convite/coordenador/publico` },
   ];
 
   return (
@@ -89,7 +89,7 @@ const CadastroPorLink: React.FC = () => {
           <button className="btn btn-secondary btn-sm" onClick={fetchCoordenadores}>
             <RefreshCw size={14} /> Atualizar
           </button>
-          <a href={`${getPublicBaseUrl()}/convite/demo`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+          <a href={`${getPublicBaseUrl()}/convite/publico`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
             <ExternalLink size={14} /> Ver Landing Page
           </a>
         </div>
