@@ -119,48 +119,54 @@ const Dashboard: React.FC = () => {
   const fetchAll = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [
-        { count: nCoord },
-        { count: nLider },
-        { count: nEleitor },
-        { count: nNucleo },
-        { count: nProjeto },
-        { count: nTurma },
-        { count: nVisita },
-        { count: nEvento },
-        { data: eleitoresData },
-        { data: coordData },
-        { data: liderData },
-      ] = await Promise.all([
-        supabase.from('coordenadores').select('*', { count: 'exact', head: true }),
-        supabase.from('liderancas').select('*', { count: 'exact', head: true }),
-        supabase.from('eleitores').select('*', { count: 'exact', head: true }),
-        supabase.from('nucleos').select('*', { count: 'exact', head: true }),
-        supabase.from('projetos').select('*', { count: 'exact', head: true }),
-        supabase.from('turmas').select('*', { count: 'exact', head: true }),
-        supabase.from('visitas').select('*', { count: 'exact', head: true }),
-        supabase.from('eventos').select('*', { count: 'exact', head: true }),
-        supabase.from('eleitores').select('status_voto, regiao, created_at'),
-        supabase.from('coordenadores').select('id, nome, regiao, tipo, votos, meta').order('votos', { ascending: false }).limit(10),
-        supabase.from('liderancas').select('id, nome, regiao, tipo, votos, meta'),
+      // Helper: safely query a table, returning default on error
+      const safeCount = async (table: string) => {
+        const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+        if (error) { console.warn(`Tabela "${table}" não encontrada ou erro:`, error.message); return 0; }
+        return count || 0;
+      };
+      const safeSelect = async (table: string, query: string, opts?: any) => {
+        const builder = supabase.from(table).select(query);
+        if (opts?.order) builder.order(opts.order, { ascending: opts.ascending ?? false });
+        if (opts?.limit) builder.limit(opts.limit);
+        const { data, error } = await builder;
+        if (error) { console.warn(`Tabela "${table}" select erro:`, error.message); return []; }
+        return data || [];
+      };
+
+      const [nCoord, nLider, nEleitor, nNucleo, nProjeto, nTurma, nVisita, nEvento] = await Promise.all([
+        safeCount('coordenadores'),
+        safeCount('liderancas'),
+        safeCount('eleitores'),
+        safeCount('nucleos'),
+        safeCount('projetos'),
+        safeCount('turmas'),
+        safeCount('visitas'),
+        safeCount('eventos'),
       ]);
 
-      const metaVotos = [...(coordData || []), ...(liderData || [])].reduce((sum: number, item: any) => sum + Number(item.meta || 0), 0);
+      const [eleitoresData, coordData, liderData] = await Promise.all([
+        safeSelect('eleitores', 'confirmou_voto, bairro, created_at'),
+        safeSelect('coordenadores', 'id, nome, regiao, tipo, votos, meta', { order: 'votos', ascending: false, limit: 10 }),
+        safeSelect('liderancas', 'id, nome, regiao, tipo, votos, meta'),
+      ]);
+
+      const metaVotos = [...coordData, ...liderData].reduce((sum: number, item: any) => sum + Number(item.meta || 0), 0);
 
       setCounts({
-        coordenadores: nCoord || 0,
-        liderancas: nLider || 0,
-        eleitores: nEleitor || 0,
-        nucleos: nNucleo || 0,
-        projetos: nProjeto || 0,
-        turmas: nTurma || 0,
-        visitas: nVisita || 0,
-        eventos: nEvento || 0,
+        coordenadores: nCoord,
+        liderancas: nLider,
+        eleitores: nEleitor,
+        nucleos: nNucleo,
+        projetos: nProjeto,
+        turmas: nTurma,
+        visitas: nVisita,
+        eventos: nEvento,
         metaVotos,
       });
 
       // Build monthly evolution from eleitores created_at (last 6 months)
-      if (eleitoresData) {
+      if (eleitoresData.length > 0) {
         const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
         const now = new Date();
         const monthCounts: Record<string, number> = {};
@@ -180,25 +186,25 @@ const Dashboard: React.FC = () => {
         });
         setEvolucao(evolucaoArr);
 
-        // Confirmação votos — by status_voto
+        // Confirmação votos — by confirmou_voto
         const statusMap: Record<string, number> = {};
         eleitoresData.forEach((e: any) => {
-          const s = e.status_voto || 'Indefinido';
+          const s = e.confirmou_voto || 'indeciso';
           statusMap[s] = (statusMap[s] || 0) + 1;
         });
         const STATUS_COLORS: Record<string, string> = {
-          'Confirmado': '#10B981', 'Provável': '#6366F1', 'Indefinido': '#F59E0B', 'Improvável': '#EF4444',
+          'sim': '#10B981', 'indeciso': '#F59E0B', 'nao': '#EF4444', 'outro_candidato': '#9CA3AF',
         };
         const confArr = Object.entries(statusMap).map(([name, value]) => ({
           name, value, color: STATUS_COLORS[name] || '#9CA3AF',
         }));
         setConfirmacaoVotos(confArr);
 
-        // Eleitores por região
+        // Eleitores por bairro
         const regiaoMap: Record<string, number> = {};
         eleitoresData.forEach((e: any) => {
-          if (!e.regiao) return;
-          regiaoMap[e.regiao] = (regiaoMap[e.regiao] || 0) + 1;
+          if (!e.bairro) return;
+          regiaoMap[e.bairro] = (regiaoMap[e.bairro] || 0) + 1;
         });
         const regiaoArr = Object.entries(regiaoMap)
           .sort((a, b) => b[1] - a[1])
@@ -208,7 +214,7 @@ const Dashboard: React.FC = () => {
       }
 
       // Top coordenadores com dados reais
-      if (coordData) {
+      if (coordData.length > 0) {
         const top = coordData
           .map((c: any) => ({
             ...c,
