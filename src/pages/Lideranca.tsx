@@ -41,7 +41,7 @@ const Liderancas: React.FC = () => {
     municipio: 'Rio de Janeiro',
     meta: 0,
     status: 'ativo',
-    telefone: '' // Assuming we add this loosely or omit it from DB if not exist
+    whatsapp: '' // Assuming we add this loosely or omit it from DB if not exist
   });
 
   useEffect(() => {
@@ -119,7 +119,7 @@ const Liderancas: React.FC = () => {
       municipio: pessoa.municipio || 'Rio de Janeiro',
       meta: pessoa.meta || 0,
       status: pessoa.status || 'ativo',
-      telefone: ''
+      whatsapp: ''
     });
     setSelectedPerson(pessoa);
     setIsEditing(true);
@@ -128,8 +128,10 @@ const Liderancas: React.FC = () => {
 
   const openCreate = () => {
     setFormData({
-      nome: '', cpf: '', tipo: 'Lideranca Local', regiao: 'Centro',
-      bairro: '', municipio: 'Rio de Janeiro', meta: 0, status: 'ativo', telefone: ''
+      nome: '', cpf: '', whatsapp: '',
+      tipo: 'Liderança',
+      regiao: 'Centro',
+      bairro: '', municipio: 'Rio de Janeiro', meta: 0, status: 'ativo'
     });
     setSelectedPerson(null);
     setIsEditing(false);

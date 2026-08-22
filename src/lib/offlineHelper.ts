@@ -75,24 +75,33 @@ export async function resolveInviterId(token: string): Promise<string | null> {
   if (!token || token === 'publico' || token === 'admin') return null;
 
   try {
-    // Check coordenadores by link_token
-    const { data: coordByToken } = await supabase.from('coordenadores').select('id').eq('link_token', token).single();
-    if (coordByToken?.id) return coordByToken.id;
+    const timeoutPromise = new Promise<string | null>((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 4000);
+    });
 
-    // Check usuarios by link_token
-    const { data: userByToken } = await supabase.from('usuarios').select('id').eq('link_token', token).single();
-    if (userByToken?.id) return userByToken.id;
+    const fetchTask = async () => {
+      // Check coordenadores by link_token
+      const { data: coordByToken } = await supabase.from('coordenadores').select('id').eq('link_token', token).single();
+      if (coordByToken?.id) return coordByToken.id;
 
-    // Check liderancas by link_token
-    const { data: liderByToken } = await supabase.from('liderancas').select('id').eq('link_token', token).single();
-    if (liderByToken?.id) return liderByToken.id;
+      // Check usuarios by link_token
+      const { data: userByToken } = await supabase.from('usuarios').select('id').eq('link_token', token).single();
+      if (userByToken?.id) return userByToken.id;
 
-    // Fallback: check if the token is already a valid UUID
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
-    if (isUUID) return token;
+      // Check liderancas by link_token
+      const { data: liderByToken } = await supabase.from('liderancas').select('id').eq('link_token', token).single();
+      if (liderByToken?.id) return liderByToken.id;
 
-    return null;
+      // Fallback: check if the token is already a valid UUID
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+      if (isUUID) return token;
+      
+      return null;
+    };
+
+    return await Promise.race([fetchTask(), timeoutPromise]);
   } catch {
-    return null;
+    // Em caso de erro de rede ou timeout, retornamos o token original pra não perder a referência local
+    return token;
   }
 }

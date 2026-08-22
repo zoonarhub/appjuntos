@@ -35,13 +35,15 @@ const Coordenadores: React.FC = () => {
   const [formData, setFormData] = useState({
     nome: '',
     cpf: '',
-    tipo: 'Coordenador Local',
+    tipo: 'Regional',
     regiao: 'Centro',
     bairro: '',
     municipio: 'Rio de Janeiro',
     meta: 0,
     status: 'ativo',
-    telefone: '' // Assuming we add this loosely or omit it from DB if not exist
+    whatsapp: '',
+    equipe: 0,
+    votos: 0
   });
 
   useEffect(() => {
@@ -119,7 +121,9 @@ const Coordenadores: React.FC = () => {
       municipio: coordenador.municipio || 'Rio de Janeiro',
       meta: coordenador.meta || 0,
       status: coordenador.status || 'ativo',
-      telefone: ''
+      whatsapp: coordenador.whatsapp || '',
+      equipe: coordenador.equipe || 0,
+      votos: coordenador.votos || 0
     });
     setSelectedPerson(coordenador);
     setIsEditing(true);
@@ -128,8 +132,13 @@ const Coordenadores: React.FC = () => {
 
   const openCreate = () => {
     setFormData({
-      nome: '', cpf: '', tipo: 'Coordenador Local', regiao: 'Centro',
-      bairro: '', municipio: 'Rio de Janeiro', meta: 0, status: 'ativo', telefone: ''
+      nome: '',
+      cpf: '',
+      whatsapp: '',
+      tipo: 'Regional',
+      regiao: 'Centro',
+      bairro: '', municipio: 'Rio de Janeiro', meta: 0, status: 'ativo',
+      equipe: 0, votos: 0
     });
     setSelectedPerson(null);
     setIsEditing(false);

@@ -35,7 +35,7 @@ const ConviteLideranca: React.FC = () => {
       const payload = {
         nome: formData.nome,
         cpf: formData.cpf.replace(/\D/g, ''),
-        telefone: formData.whatsapp,
+        whatsapp: formData.whatsapp,
         bairro: formData.bairro,
         regiao: formData.regiao,
         indicado_por: inviterId || 'Orgânico',
