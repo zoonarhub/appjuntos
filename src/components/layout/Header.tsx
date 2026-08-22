@@ -243,6 +243,8 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
               }
               const { error } = await supabase.from('usuarios').update(updates).eq('id', dbUser.id);
               if (!error) {
+                 const stored = JSON.parse(localStorage.getItem('crm_user_session') || '{}');
+                 localStorage.setItem('crm_user_session', JSON.stringify({ ...stored, ...updates }));
                  window.location.reload();
               } else {
                  alert('Erro ao atualizar perfil.');
@@ -253,6 +255,15 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
                 <div className="form-group">
                   <label className="form-label">Nome</label>
                   <input required className="form-input" value={profileFormData.nome} onChange={e => setProfileFormData({...profileFormData, nome: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">CPF</label>
+                  <input disabled className="form-input" value={dbUser.cpf} style={{ opacity: 0.7, cursor: 'not-allowed' }} />
+                  <p className="text-xs text-gray-400 mt-1">O CPF não pode ser alterado.</p>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Cargo / Perfil</label>
+                  <input disabled className="form-input" value={dbUser.role || dbUser.perfil || 'Não definido'} style={{ opacity: 0.7, cursor: 'not-allowed' }} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Nova Senha (opcional)</label>

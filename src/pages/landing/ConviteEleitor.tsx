@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { MapPin, Phone, Shield, Heart, HeartHandshake, FileText, CheckCircle } from 'lucide-react';
 import BairroSelect from '../../components/ui/BairroSelect';
-import { saveWithOfflineFallback } from '../../lib/offlineHelper';
+import { saveWithOfflineFallback, resolveInviterId } from '../../lib/offlineHelper';
 
 const ConviteEleitor: React.FC = () => {
   const { indicadoId } = useParams();
@@ -29,6 +29,8 @@ const ConviteEleitor: React.FC = () => {
     setSubmitting(true);
     
     try {
+      const inviterId = await resolveInviterId(indicadoId || '');
+
       const payload = {
         nome: formData.nome,
         cpf: formData.cpf.replace(/\D/g, ''),
@@ -37,7 +39,7 @@ const ConviteEleitor: React.FC = () => {
         cep: formData.cep,
         endereco: formData.endereco,
         bairro: formData.bairro,
-        indicado_por: indicadoId || 'Orgânico',
+        indicado_por: inviterId || 'Orgânico',
         status: 'pendente',
         confirmou_voto: 'indeciso'
       };

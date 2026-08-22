@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, HeartHandshake } from 'lucide-react';
 import BairroSelect from '../../components/ui/BairroSelect';
-import { saveWithOfflineFallback } from '../../lib/offlineHelper';
+import { saveWithOfflineFallback, resolveInviterId } from '../../lib/offlineHelper';
 
 const ConviteCoordenador: React.FC = () => {
   const { indicadoId } = useParams();
@@ -24,6 +24,8 @@ const ConviteCoordenador: React.FC = () => {
     setSubmitting(true);
     
     try {
+      const inviterId = await resolveInviterId(indicadoId || '');
+
       const payload = {
         nome: formData.nome,
         cpf: formData.cpf.replace(/\D/g, ''),
@@ -32,7 +34,7 @@ const ConviteCoordenador: React.FC = () => {
         regiao: formData.regiao,
         municipio: 'Rio de Janeiro',
         tipo: `Coordenador ${formData.tipo}`,
-        indicado_por: indicadoId || 'Admin',
+        indicado_por: inviterId || 'Admin',
         meta: formData.tipo === 'Geral' ? 500 : formData.tipo === 'Regional' ? 250 : 100,
         votos: 0,
         status: 'ativo'

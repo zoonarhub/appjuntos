@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, HeartHandshake } from 'lucide-react';
 import BairroSelect from '../../components/ui/BairroSelect';
-import { saveWithOfflineFallback } from '../../lib/offlineHelper';
+import { saveWithOfflineFallback, resolveInviterId } from '../../lib/offlineHelper';
 
 const ConviteLideranca: React.FC = () => {
   const { indicadoId } = useParams();
@@ -11,8 +11,14 @@ const ConviteLideranca: React.FC = () => {
   const [success, setSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
-    nome: '', cpf: '', whatsapp: '', instagram: '',
-    cep: '', endereco: '', bairro: '', regiao: 'Rio de Janeiro'
+    nome: '',
+    cpf: '',
+    whatsapp: '',
+    instagram: '',
+    cep: '',
+    endereco: '',
+    bairro: '',
+    regiao: ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -24,16 +30,19 @@ const ConviteLideranca: React.FC = () => {
     setSubmitting(true);
     
     try {
+      const inviterId = await resolveInviterId(indicadoId || '');
+
       const payload = {
         nome: formData.nome,
         cpf: formData.cpf.replace(/\D/g, ''),
-        whatsapp: formData.whatsapp,
+        telefone: formData.whatsapp,
         bairro: formData.bairro,
         regiao: formData.regiao,
-        indicado_por: indicadoId || 'Orgânico',
+        indicado_por: inviterId || 'Orgânico',
+        status: 'ativo',
+        tipo: 'Liderança',
         meta: 50,
-        votos: 0,
-        status: 'Ativo'
+        votos: 0
       };
 
       const result = await saveWithOfflineFallback('liderancas', payload);

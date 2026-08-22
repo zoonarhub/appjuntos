@@ -27,16 +27,23 @@ export async function saveWithOfflineFallback(
     return { success: true, savedLocally: true };
   }
 
-  // Tenta salvar no Supabase
+  // Tenta salvar no Supabase com um limite de tempo (Timeout) de 5 segundos
+  // Isso previne que o aplicativo fique em "loading infinito" se o banco estiver pausado
   try {
-    let error: any = null;
+    const timeoutPromise = new Promise<{ error: any }>((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 5000);
+    });
+
+    let queryPromise;
     if (operation === 'INSERT') {
-      const result = await supabase.from(tableName).insert([payload]);
-      error = result.error;
+      queryPromise = supabase.from(tableName).insert([payload]);
     } else if (operation === 'UPDATE' && recordId) {
-      const result = await supabase.from(tableName).update(payload).eq('id', recordId);
-      error = result.error;
+      queryPromise = supabase.from(tableName).update(payload).eq('id', recordId);
     }
+
+    // Espera quem resolver primeiro: a query ou o timeout
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    const error = (result as any)?.error;
 
     if (error) {
       // Verifica se é erro de rede (não de dados inválidos)
@@ -55,8 +62,37 @@ export async function saveWithOfflineFallback(
 
     return { success: true, savedLocally: false };
   } catch (err: any) {
-    // Qualquer exceção de rede -> enfileira local
+    // Se caiu aqui, provavelmente foi o TIMEOUT_ERROR ou erro catastrófico de rede
     await queueSyncOperation(tableName, operation, payload, recordId);
     return { success: true, savedLocally: true };
+  }
+}
+
+/**
+ * Resolve an inviter's link_token or ID to their actual UUID.
+ */
+export async function resolveInviterId(token: string): Promise<string | null> {
+  if (!token || token === 'publico' || token === 'admin') return null;
+
+  try {
+    // Check coordenadores by link_token
+    const { data: coordByToken } = await supabase.from('coordenadores').select('id').eq('link_token', token).single();
+    if (coordByToken?.id) return coordByToken.id;
+
+    // Check usuarios by link_token
+    const { data: userByToken } = await supabase.from('usuarios').select('id').eq('link_token', token).single();
+    if (userByToken?.id) return userByToken.id;
+
+    // Check liderancas by link_token
+    const { data: liderByToken } = await supabase.from('liderancas').select('id').eq('link_token', token).single();
+    if (liderByToken?.id) return liderByToken.id;
+
+    // Fallback: check if the token is already a valid UUID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+    if (isUUID) return token;
+
+    return null;
+  } catch {
+    return null;
   }
 }
