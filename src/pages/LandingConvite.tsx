@@ -75,28 +75,93 @@ const LandingConvite: React.FC = () => {
     }
 
     setLoadingConvidador(true);
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+    
     try {
-      const { data } = await supabase
+      // 1. Search coordenadores by link_token
+      const { data: coordByToken } = await supabase
         .from('coordenadores')
         .select('id, nome, tipo, bairro, regiao, total_indicados')
         .eq('link_token', token)
         .single();
 
-      if (data) {
-        setConvidador(data);
-      } else {
-        const { data: usr } = await supabase
-          .from('usuarios')
-          .select('id, nome, perfil, bairro')
-          .eq('link_token', token)
+      if (coordByToken) {
+        setConvidador(coordByToken);
+        setLoadingConvidador(false);
+        return;
+      }
+
+      // 2. If token is a UUID, search coordenadores by id
+      if (isUUID) {
+        const { data: coordById } = await supabase
+          .from('coordenadores')
+          .select('id, nome, tipo, bairro, regiao, total_indicados')
+          .eq('id', token)
           .single();
 
-        if (usr) {
-          setConvidador({ ...usr, tipo: usr.perfil || 'Liderança' });
-        } else {
-          setConvidador(null);
+        if (coordById) {
+          setConvidador(coordById);
+          setLoadingConvidador(false);
+          return;
         }
       }
+
+      // 3. Search usuarios by link_token
+      const { data: usr } = await supabase
+        .from('usuarios')
+        .select('id, nome, perfil, bairro')
+        .eq('link_token', token)
+        .single();
+
+      if (usr) {
+        setConvidador({ ...usr, tipo: usr.perfil || 'Liderança' });
+        setLoadingConvidador(false);
+        return;
+      }
+
+      // 4. If token is a UUID, search usuarios by id
+      if (isUUID) {
+        const { data: usrById } = await supabase
+          .from('usuarios')
+          .select('id, nome, perfil, bairro')
+          .eq('id', token)
+          .single();
+
+        if (usrById) {
+          setConvidador({ ...usrById, tipo: usrById.perfil || 'Liderança' });
+          setLoadingConvidador(false);
+          return;
+        }
+      }
+
+      // 5. Search liderancas by link_token or id
+      const { data: liderByToken } = await supabase
+        .from('liderancas')
+        .select('id, nome, tipo, bairro, regiao')
+        .eq('link_token', token)
+        .single();
+
+      if (liderByToken) {
+        setConvidador(liderByToken);
+        setLoadingConvidador(false);
+        return;
+      }
+
+      if (isUUID) {
+        const { data: liderById } = await supabase
+          .from('liderancas')
+          .select('id, nome, tipo, bairro, regiao')
+          .eq('id', token)
+          .single();
+
+        if (liderById) {
+          setConvidador(liderById);
+          setLoadingConvidador(false);
+          return;
+        }
+      }
+
+      setConvidador(null);
     } catch {
       setConvidador(null);
     } finally {
