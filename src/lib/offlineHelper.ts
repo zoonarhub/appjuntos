@@ -94,7 +94,16 @@ export async function resolveInviterId(token: string): Promise<string | null> {
 
       // Fallback: check if the token is already a valid UUID
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
-      if (isUUID) return token;
+      if (isUUID) {
+        const { data: coordById } = await supabase
+          .from('coordenadores')
+          .select('id')
+          .or(`id.eq.${token},usuario_id.eq.${token}`)
+          .maybeSingle();
+        if (coordById?.id) return coordById.id;
+
+        return token;
+      }
       
       return null;
     };

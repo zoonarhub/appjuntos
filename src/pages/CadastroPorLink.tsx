@@ -24,11 +24,24 @@ const CadastroPorLink: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [userCoordRecord, setUserCoordRecord] = useState<any>(null);
   const { addNotification } = useNotifications();
 
   useEffect(() => {
     fetchCoordenadores();
-  }, []);
+    if (dbUser) {
+      fetchUserCoordinatorRecord();
+    }
+  }, [dbUser]);
+
+  const fetchUserCoordinatorRecord = async () => {
+    const { data } = await supabase
+      .from('coordenadores')
+      .select('link_token')
+      .eq('usuario_id', dbUser.id)
+      .maybeSingle();
+    if (data) setUserCoordRecord(data);
+  };
 
   const fetchCoordenadores = async () => {
     setLoading(true);
@@ -64,6 +77,9 @@ const CadastroPorLink: React.FC = () => {
     if (!error) {
       addNotification('Novo link gerado com sucesso!', 'success');
       fetchCoordenadores();
+      if (coord.usuario_id === dbUser?.id) {
+        fetchUserCoordinatorRecord();
+      }
     } else {
       addNotification('Erro ao gerar link', 'error');
     }
@@ -80,7 +96,7 @@ const CadastroPorLink: React.FC = () => {
   const totalCadastros = coordenadores.reduce((s, c) => s + (c.total_indicados || 0), 0);
   const comLink = coordenadores.filter(c => c.link_token).length;
   
-  const tokenToUse = dbUser?.link_token || dbUser?.id || 'publico';
+  const tokenToUse = userCoordRecord?.link_token || dbUser?.link_token || dbUser?.id || 'publico';
   
   const publicLinks = [
     { key: 'landing', label: 'Landing de captação (Eleitores)', href: `${getPublicBaseUrl()}/convite/${tokenToUse}` },
