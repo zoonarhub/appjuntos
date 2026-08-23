@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link2, Copy, Check, QrCode, RefreshCw, ExternalLink, Loader2, Users, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 
 const DEFAULT_PUBLIC_URL = 'https://appjuntos.vercel.app';
@@ -17,6 +18,7 @@ const getPublicBaseUrl = () => {
 };
 
 const CadastroPorLink: React.FC = () => {
+  const { dbUser } = useAuth();
   const [coordenadores, setCoordenadores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -30,10 +32,16 @@ const CadastroPorLink: React.FC = () => {
 
   const fetchCoordenadores = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('coordenadores')
       .select('id, nome, tipo, bairro, regiao, link_token, total_indicados, status, meta, votos')
       .order('nome');
+      
+    if (dbUser?.role !== 'Admin') {
+      query = query.eq('indicado_por', dbUser?.id);
+    }
+
+    const { data, error } = await query;
     if (!error && data) setCoordenadores(data);
     setLoading(false);
   };
@@ -71,10 +79,13 @@ const CadastroPorLink: React.FC = () => {
 
   const totalCadastros = coordenadores.reduce((s, c) => s + (c.total_indicados || 0), 0);
   const comLink = coordenadores.filter(c => c.link_token).length;
+  
+  const tokenToUse = dbUser?.link_token || dbUser?.id || 'publico';
+  
   const publicLinks = [
-    { key: 'landing', label: 'Landing de captação (Eleitores)', href: `${getPublicBaseUrl()}/convite/publico` },
-    { key: 'lideranca', label: 'Convite para Lideranças', href: `${getPublicBaseUrl()}/convite/lideranca/publico` },
-    { key: 'coordenador', label: 'Convite para Coordenadores', href: `${getPublicBaseUrl()}/convite/coordenador/publico` },
+    { key: 'landing', label: 'Landing de captação (Eleitores)', href: `${getPublicBaseUrl()}/convite/${tokenToUse}` },
+    { key: 'lideranca', label: 'Convite para Lideranças', href: `${getPublicBaseUrl()}/convite/lideranca/${tokenToUse}` },
+    { key: 'coordenador', label: 'Convite para Coordenadores', href: `${getPublicBaseUrl()}/convite/coordenador/${tokenToUse}` },
   ];
 
   return (

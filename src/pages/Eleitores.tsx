@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import BairroSelect from '../components/ui/BairroSelect';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
+import { useAuth } from '../contexts/AuthContext';
 import { saveWithOfflineFallback } from '../lib/offlineHelper';
 
 const VOTO_CONFIG: Record<string, any> = {
@@ -30,6 +31,7 @@ const emptyForm = {
 };
 
 const Eleitores: React.FC = () => {
+  const { dbUser } = useAuth();
   const [eleitores, setEleitores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -49,10 +51,13 @@ const Eleitores: React.FC = () => {
 
   const fetchEleitores = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('eleitores')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let query = supabase.from('eleitores').select('*').order('created_at', { ascending: false });
+    
+    if (dbUser?.role !== 'Admin') {
+      query = query.eq('indicado_por', dbUser?.id);
+    }
+    
+    const { data, error } = await query;
     if (!error && data) setEleitores(data);
     setLoading(false);
   };
@@ -227,7 +232,7 @@ const Eleitores: React.FC = () => {
                 <th>Localização</th>
                 <th>Título</th>
                 <th>Origem</th>
-                <th>Ações</th>
+                {dbUser?.role === 'Admin' && <th>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -286,12 +291,14 @@ const Eleitores: React.FC = () => {
                         {e.origem === 'landing' ? '🔗 Landing' : '✏️ Manual'}
                       </span>
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-ghost btn-sm btn-icon" onClick={(ev) => { ev.stopPropagation(); openEdit(e, ev); }}><Edit2 size={14} /></button>
-                        <button className="btn btn-ghost btn-sm btn-icon" style={{ color: 'var(--danger)' }} onClick={(ev) => handleDelete(e.id, ev)}><Trash2 size={14} /></button>
-                      </div>
-                    </td>
+                    {dbUser?.role === 'Admin' && (
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn btn-ghost btn-sm btn-icon" onClick={(ev) => { ev.stopPropagation(); openEdit(e, ev); }}><Edit2 size={14} /></button>
+                          <button className="btn btn-ghost btn-sm btn-icon" style={{ color: 'var(--danger)' }} onClick={(ev) => handleDelete(e.id, ev)}><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

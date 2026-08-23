@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useIBGE } from '../hooks/useIBGE';
 import { saveWithOfflineFallback } from '../lib/offlineHelper';
+import { useAuth } from '../contexts/AuthContext';
 import BairroSelect from '../components/ui/BairroSelect';
 
 const TIPOS = ['Todos', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'];
@@ -18,6 +19,7 @@ const TIPO_COLORS: Record<string, string> = {
 };
 
 const Coordenadores: React.FC = () => {
+  const { dbUser } = useAuth();
   const [coordenadores, setCoordenadores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -52,7 +54,13 @@ const Coordenadores: React.FC = () => {
 
   const fetchCoordenadores = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('coordenadores').select('*').order('created_at', { ascending: false });
+    let query = supabase.from('coordenadores').select('*').order('created_at', { ascending: false });
+    
+    if (dbUser?.role !== 'Admin') {
+      query = query.eq('indicado_por', dbUser?.id);
+    }
+    
+    const { data, error } = await query;
     if (!error && data) {
       setCoordenadores(data);
     }
@@ -226,7 +234,7 @@ const Coordenadores: React.FC = () => {
                 <th>Região / Bairro</th>
                 <th>Votos / Meta</th>
                 <th>Status</th>
-                <th>Ações</th>
+                {dbUser?.role === 'Admin' && <th>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -250,13 +258,15 @@ const Coordenadores: React.FC = () => {
                       {p.status}
                     </span>
                   </td>
-                  <td onClick={e => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn btn-ghost btn-sm btn-icon" onClick={() => { setSelectedPerson(p); setIsEditing(false); setShowModal(true); }}><Eye size={14} /></button>
-                      <button className="btn btn-ghost btn-sm btn-icon" onClick={(e) => openEdit(p, e)}><Edit2 size={14} /></button>
-                      <button className="btn btn-ghost btn-sm btn-icon" style={{ color: 'var(--danger)' }} onClick={(e) => handleDelete(p.id, e)}><Trash2 size={14} /></button>
-                    </div>
-                  </td>
+                  {dbUser?.role === 'Admin' && (
+                    <td onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => { setSelectedPerson(p); setIsEditing(false); setShowModal(true); }}><Eye size={14} /></button>
+                        <button className="btn btn-ghost btn-sm btn-icon" onClick={(e) => openEdit(p, e)}><Edit2 size={14} /></button>
+                        <button className="btn btn-ghost btn-sm btn-icon" style={{ color: 'var(--danger)' }} onClick={(e) => handleDelete(p.id, e)}><Trash2 size={14} /></button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (
