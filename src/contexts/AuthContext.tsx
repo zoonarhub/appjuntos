@@ -74,11 +74,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!existingUser.status_acesso) {
         return { error: 'PENDING' };
       }
-      setDbUser(existingUser);
-      setAuditUser(existingUser.id, existingUser.nome);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(existingUser));
+
+      // Auto-generate link_token if user doesn't have one
+      let userWithToken = existingUser;
+      if (!existingUser.link_token) {
+        const newToken = Math.random().toString(36).substring(2, 12);
+        const { error: tokenError } = await supabase
+          .from('usuarios')
+          .update({ link_token: newToken })
+          .eq('id', existingUser.id);
+        if (!tokenError) {
+          userWithToken = { ...existingUser, link_token: newToken };
+        }
+      }
+
+      setDbUser(userWithToken);
+      setAuditUser(userWithToken.id, userWithToken.nome);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(userWithToken));
       // If first login with temp password, signal it
-      if (existingUser.senha === '123456') {
+      if (userWithToken.senha === '123456') {
         return { error: 'CHANGE_PASSWORD' };
       }
       return {};
@@ -86,9 +100,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (senha !== '123456') {
         return { error: 'Usuário não encontrado. Se é seu primeiro acesso, a senha padrão é 123456.' };
       }
+      const newToken = Math.random().toString(36).substring(2, 12);
       const { data: newUser, error: createError } = await supabase
         .from('usuarios')
-        .insert([{ cpf: cleanCpf, nome: `Usuário ${cleanCpf}`, senha, status_acesso: false, role: 'Liderança' }])
+        .insert([{ cpf: cleanCpf, nome: `Usuário ${cleanCpf}`, senha, status_acesso: false, role: 'Liderança', link_token: newToken }])
         .select()
         .single();
 

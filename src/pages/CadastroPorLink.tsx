@@ -99,7 +99,7 @@ const CadastroPorLink: React.FC = () => {
           <button className="btn btn-secondary btn-sm" onClick={fetchCoordenadores}>
             <RefreshCw size={14} /> Atualizar
           </button>
-          <a href={`${getPublicBaseUrl()}/convite/publico`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+          <a href={`${getPublicBaseUrl()}/convite/${tokenToUse}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
             <ExternalLink size={14} /> Ver Landing Page
           </a>
         </div>
@@ -120,21 +120,24 @@ const CadastroPorLink: React.FC = () => {
               Como funcionam os links de convite?
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              Cada coordenador recebe um link único. Quando alguém se cadastra pela landing page <strong>"Juntos pelo Rio"</strong> via esse link, os dados são automaticamente vinculados ao coordenador no CRM.
+              Cada pessoa recebe um link único. Quando alguém se cadastra pela landing page <strong>"Juntos pelo Rio"</strong> via esse link, os dados são automaticamente vinculados a quem compartilhou.
             </div>
           </div>
           <div style={{ flexShrink: 0 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>URL base</div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Seu token</div>
             <code style={{ fontSize: 12, color: '#10B981', background: 'rgba(16,185,129,0.1)', padding: '4px 10px', borderRadius: 6 }}>
-              {getPublicBaseUrl()}/convite/TOKEN
+              {tokenToUse}
             </code>
           </div>
         </div>
       </div>
 
       <div className="card mb-lg" style={{ marginBottom: 'var(--space-lg)', padding: 18 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
-          Links públicos de captura
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+          Seus links de convite
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12 }}>
+          Vinculados a: <strong style={{ color: 'var(--brand-primary)' }}>{dbUser?.nome || 'Usuário'}</strong> • Token: <code style={{ color: '#10B981' }}>{tokenToUse}</code>
         </div>
         <div style={{ display: 'grid', gap: 10 }}>
           {publicLinks.map((link) => (
@@ -143,7 +146,8 @@ const CadastroPorLink: React.FC = () => {
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{link.label}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{link.href}</div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span className="badge badge-success" style={{ fontSize: 11 }}>ativo</span>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleCopyUrl(link.key, link.href)}>
                   {copiedUrl === link.key ? <Check size={13} /> : <Copy size={13} />} Copiar
                 </button>
