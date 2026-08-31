@@ -88,6 +88,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      // Link coordinator by CPF if not linked and sync the name
+      const formattedCpf = cleanCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+      const { data: coordRecord } = await supabase
+        .from('coordenadores')
+        .select('*')
+        .eq('cpf', formattedCpf)
+        .maybeSingle();
+
+      if (coordRecord) {
+        if (coordRecord.usuario_id !== existingUser.id) {
+          await supabase
+            .from('coordenadores')
+            .update({ usuario_id: existingUser.id })
+            .eq('id', coordRecord.id);
+        }
+        if (existingUser.nome.startsWith('Usuário') || existingUser.nome !== coordRecord.nome) {
+          const { error: nameErr } = await supabase
+            .from('usuarios')
+            .update({ nome: coordRecord.nome })
+            .eq('id', existingUser.id);
+          if (!nameErr) {
+            userWithToken.nome = coordRecord.nome;
+          }
+        }
+      }
+
       setDbUser(userWithToken);
       setAuditUser(userWithToken.id, userWithToken.nome);
       localStorage.setItem(SESSION_KEY, JSON.stringify(userWithToken));
