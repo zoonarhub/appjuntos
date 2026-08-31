@@ -38,6 +38,7 @@ const Eleitores: React.FC = () => {
   const [votoFilter, setVotoFilter] = useState('todos');
   const [origemFilter, setOrigemFilter] = useState('todos');
   const { addNotification } = useNotifications();
+  const [indicadoresMap, setIndicadoresMap] = useState<Record<string, string>>({});
 
   const [showModal, setShowModal] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
@@ -59,7 +60,30 @@ const Eleitores: React.FC = () => {
     }
     
     const { data, error } = await query;
-    if (!error && data) setEleitores(data);
+    if (!error && data) {
+      setEleitores(data);
+      // Resolve indicado_por IDs to names
+      const ids = [...new Set(data.map((e: any) => e.indicado_por).filter(Boolean))];
+      if (ids.length > 0) {
+        const nameMap: Record<string, string> = {};
+        // Search coordenadores
+        const { data: coords } = await supabase.from('coordenadores').select('id, nome, usuario_id').in('id', ids);
+        coords?.forEach((c: any) => { nameMap[c.id] = c.nome; if (c.usuario_id) nameMap[c.usuario_id] = c.nome; });
+        // Search usuarios for remaining
+        const remainingIds = ids.filter(id => !nameMap[id]);
+        if (remainingIds.length > 0) {
+          const { data: users } = await supabase.from('usuarios').select('id, nome').in('id', remainingIds);
+          users?.forEach((u: any) => { nameMap[u.id] = u.nome; });
+        }
+        // Search liderancas for any still remaining
+        const stillRemaining = ids.filter(id => !nameMap[id]);
+        if (stillRemaining.length > 0) {
+          const { data: liders } = await supabase.from('liderancas').select('id, nome').in('id', stillRemaining);
+          liders?.forEach((l: any) => { nameMap[l.id] = l.nome; });
+        }
+        setIndicadoresMap(nameMap);
+      }
+    }
     setLoading(false);
   };
 
@@ -129,8 +153,8 @@ const Eleitores: React.FC = () => {
   };
 
   const handleExport = () => {
-    const csv = ['Nome,CPF,WhatsApp,Instagram,CEP,Endereço,Bairro,Município,Zona,Seção,Intenção de Voto,Origem',
-      ...eleitores.map(e => `${e.nome},${e.cpf || ''},${e.whatsapp || e.telefone || ''},${e.instagram || ''},${e.cep || ''},${e.endereco || ''},${e.bairro || ''},${e.municipio || ''},${e.zona_eleitoral || ''},${e.secao_eleitoral || ''},${e.confirmou_voto || ''},${e.origem || 'manual'}`)
+    const csv = ['Nome,CPF,WhatsApp,Instagram,CEP,Endereço,Bairro,Município,Zona,Seção,Intenção de Voto,Origem,Indicado por',
+      ...eleitores.map(e => `${e.nome},${e.cpf || ''},${e.whatsapp || e.telefone || ''},${e.instagram || ''},${e.cep || ''},${e.endereco || ''},${e.bairro || ''},${e.municipio || ''},${e.zona_eleitoral || ''},${e.secao_eleitoral || ''},${e.confirmou_voto || ''},${e.origem || 'manual'},${e.indicado_por ? (indicadoresMap[e.indicado_por] || e.indicado_por) : ''}`)
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -232,7 +256,9 @@ const Eleitores: React.FC = () => {
                 <th>Intenção</th>
                 <th>Localização</th>
                 <th>Título</th>
-                        {(dbUser?.role === 'Admin' || dbUser?.role === 'Administrador') && <th>Ações</th>}
+                <th>Origem</th>
+                <th>Indicado por</th>
+                {(dbUser?.role === 'Admin' || dbUser?.role === 'Administrador') && <th>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -287,9 +313,30 @@ const Eleitores: React.FC = () => {
                       )}
                     </td>
                     <td>
-                      <span className={`badge ${e.origem === 'landing' ? 'badge-info' : 'badge-gray'}`} style={{ fontSize: 11 }}>
-                        {e.origem === 'landing' ? '🔗 Landing' : '✏️ Manual'}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span className={`badge ${e.origem === 'landing' ? 'badge-info' : 'badge-gray'}`} style={{ fontSize: 11 }}>
+                          {e.origem === 'landing' ? '🔗 Landing' : '✏️ Manual'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      {e.indicado_por && indicadoresMap[e.indicado_por] ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{
+                            width: 24, height: 24, borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0,
+                          }}>
+                            {indicadoresMap[e.indicado_por].charAt(0).toUpperCase()}
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                            {indicadoresMap[e.indicado_por]}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'var(--text-disabled)', fontStyle: 'italic' }}>—</span>
+                      )}
                     </td>
                     {(dbUser?.role === 'Admin' || dbUser?.role === 'Administrador') && (
                       <td>
@@ -303,7 +350,7 @@ const Eleitores: React.FC = () => {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-tertiary)' }}>Nenhum eleitor encontrado.</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-tertiary)' }}>Nenhum eleitor encontrado.</td></tr>
               )}
             </tbody>
           </table>

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { CheckCircle, Users, Heart, Shield, Star, ChevronRight, ChevronLeft, Loader2, MapPin, Phone, User, FileText, Hash } from 'lucide-react';
 import { saveWithOfflineFallback } from '../lib/offlineHelper';
+import BairroSelect from '../components/ui/BairroSelect';
 
 const DEFAULT_PUBLIC_URL = 'https://appjuntos.vercel.app';
 
@@ -53,6 +54,7 @@ const LandingConvite: React.FC = () => {
 
   const [formData, setFormData] = useState({
     nome: '', cpf: '', whatsapp: '', cep: '', endereco: '', instagram: '',
+    bairro: '',
     titulo_eleitor: '', zona_eleitoral: '', secao_eleitoral: '',
   });
 
@@ -193,6 +195,7 @@ const LandingConvite: React.FC = () => {
       errs.cpf = 'CPF inválido (11 dígitos)';
     if (!formData.whatsapp.replace(/\D/g, '') || formData.whatsapp.replace(/\D/g, '').length < 10)
       errs.whatsapp = 'WhatsApp inválido';
+    if (!formData.bairro.trim()) errs.bairro = 'Bairro é obrigatório';
     if (!formData.cep.replace(/\D/g, '') || formData.cep.replace(/\D/g, '').length !== 8)
       errs.cep = 'CEP inválido (8 dígitos)';
     if (!formData.endereco.trim()) errs.endereco = 'Endereço é obrigatório';
@@ -221,6 +224,7 @@ const LandingConvite: React.FC = () => {
         whatsapp: formData.whatsapp.replace(/\D/g, ''),
         telefone: formData.whatsapp.replace(/\D/g, ''),
         cep: formData.cep.replace(/\D/g, ''),
+        bairro: formData.bairro,
         endereco: formData.endereco,
         instagram: instagramValue,
         titulo_eleitor: formData.titulo_eleitor || null,
@@ -249,6 +253,7 @@ const LandingConvite: React.FC = () => {
           nome: formData.nome,
           cpf: formData.cpf.replace(/\D/g, ''),
           telefone: formData.whatsapp.replace(/\D/g, ''),
+          bairro: formData.bairro,
           confirmou_voto: 'indeciso',
           status: 'pendente',
         };
@@ -481,6 +486,17 @@ const LandingConvite: React.FC = () => {
                     onChange={e => setFormData({ ...formData, instagram: e.target.value })} />
                 </div>
                 {fieldError('instagram')}
+              </div>
+
+              {/* Bairro do Rio de Janeiro */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={labelStyle}>Bairro do Rio de Janeiro *</label>
+                <BairroSelect
+                  value={formData.bairro}
+                  onChange={val => setFormData({ ...formData, bairro: val })}
+                  style={inputStyle}
+                />
+                {fieldError('bairro')}
               </div>
 
               {/* CEP + Endereço */}
