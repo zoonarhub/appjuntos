@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { useSync } from './hooks/useSync';
@@ -52,8 +52,17 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!dbUser) {
-    window.location.replace('/login');
-    return null;
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = (dbUser.role || 'Liderança').trim().toLowerCase();
+  const isAdmin = role.includes('admin') || role === 'administrador';
+  
+  if (!isAdmin) {
+    const allowedPaths = ['/cadastro-link', '/eventos', '/agenda', '/visitas'];
+    if (!allowedPaths.includes(window.location.pathname)) {
+      return <Navigate to="/cadastro-link" replace />;
+    }
   }
 
   return <Layout>{children}</Layout>;

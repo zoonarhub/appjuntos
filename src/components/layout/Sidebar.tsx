@@ -20,34 +20,34 @@ interface NavItem {
 // roles: undefined = todos | ['Administrador'] = só admin | etc.
 const navItems: NavItem[] = [
   // Principal
-  { path: '/', label: 'Dashboard', icon: <LayoutDashboard size={16} />, section: 'Principal' },
-  { path: '/mapa', label: 'Mapa Eleitoral', icon: <Map size={16} />, section: 'Principal', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional'] },
-  { path: '/bi', label: 'Business Intelligence', icon: <BarChart3 size={16} />, section: 'Principal', roles: ['Administrador', 'Coordenador Geral'] },
+  { path: '/', label: 'Dashboard', icon: <LayoutDashboard size={16} />, section: 'Principal', roles: ['Administrador'] },
+  { path: '/mapa', label: 'Mapa Eleitoral', icon: <Map size={16} />, section: 'Principal', roles: ['Administrador'] },
+  { path: '/bi', label: 'Business Intelligence', icon: <BarChart3 size={16} />, section: 'Principal', roles: ['Administrador'] },
 
   // CRM
-  { path: '/coordenadores', label: 'Coordenadores', icon: <Users size={16} />, section: 'CRM', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional'] },
-  { path: '/liderancas', label: 'Lideranças', icon: <UserCheck size={16} />, section: 'CRM', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'] },
-  { path: '/eleitores', label: 'Eleitores', icon: <Vote size={16} />, section: 'CRM', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local', 'Liderança'] },
+  { path: '/coordenadores', label: 'Coordenadores', icon: <Users size={16} />, section: 'CRM', roles: ['Administrador'] },
+  { path: '/liderancas', label: 'Lideranças', icon: <UserCheck size={16} />, section: 'CRM', roles: ['Administrador'] },
+  { path: '/eleitores', label: 'Eleitores', icon: <Vote size={16} />, section: 'CRM', roles: ['Administrador'] },
   { path: '/cadastro-link', label: 'Links de Convite', icon: <Link2 size={16} />, section: 'CRM' }, // ALL roles
 
   // Territorial
-  { path: '/nucleos', label: 'Núcleos', icon: <Building2 size={16} />, section: 'Territorial', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'] },
-  { path: '/projetos', label: 'Projetos', icon: <Layers size={16} />, section: 'Territorial', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional'] },
-  { path: '/turmas', label: 'Turmas', icon: <GraduationCap size={16} />, section: 'Territorial', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional'] },
+  { path: '/nucleos', label: 'Núcleos', icon: <Building2 size={16} />, section: 'Territorial', roles: ['Administrador'] },
+  { path: '/projetos', label: 'Projetos', icon: <Layers size={16} />, section: 'Territorial', roles: ['Administrador'] },
+  { path: '/turmas', label: 'Turmas', icon: <GraduationCap size={16} />, section: 'Territorial', roles: ['Administrador'] },
 
   // Operacional
-  { path: '/eventos', label: 'Eventos', icon: <CalendarDays size={16} />, section: 'Operacional', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'] },
-  { path: '/agenda', label: 'Agenda', icon: <BookOpen size={16} />, section: 'Operacional', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'] },
-  { path: '/visitas', label: 'Visitas', icon: <Navigation size={16} />, section: 'Operacional', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional', 'Coordenador Local'] },
+  { path: '/eventos', label: 'Eventos', icon: <CalendarDays size={16} />, section: 'Operacional' }, // ALL roles
+  { path: '/agenda', label: 'Agenda', icon: <BookOpen size={16} />, section: 'Operacional' }, // ALL roles
+  { path: '/visitas', label: 'Visitas', icon: <Navigation size={16} />, section: 'Operacional' }, // ALL roles
 
   // Inteligência
-  { path: '/metas', label: 'Metas', icon: <Target size={16} />, section: 'Inteligência' }, // ALL roles
-  { path: '/ranking', label: 'Ranking', icon: <Trophy size={16} />, section: 'Inteligência' }, // ALL roles
-  { path: '/tse', label: 'Integração TSE/TRE', icon: <FileSpreadsheet size={16} />, section: 'Inteligência', roles: ['Administrador', 'Coordenador Geral'] },
+  { path: '/metas', label: 'Metas', icon: <Target size={16} />, section: 'Inteligência', roles: ['Administrador'] },
+  { path: '/ranking', label: 'Ranking', icon: <Trophy size={16} />, section: 'Inteligência', roles: ['Administrador'] },
+  { path: '/tse', label: 'Integração TSE/TRE', icon: <FileSpreadsheet size={16} />, section: 'Inteligência', roles: ['Administrador'] },
 
   // Comunicação
-  { path: '/comunicacao', label: 'Comunicação', icon: <MessageSquare size={16} />, section: 'Comunicação', roles: ['Administrador', 'Coordenador Geral'] },
-  { path: '/documentos', label: 'Documentos', icon: <FolderOpen size={16} />, section: 'Comunicação', roles: ['Administrador', 'Coordenador Geral', 'Coordenador Regional'] },
+  { path: '/comunicacao', label: 'Comunicação', icon: <MessageSquare size={16} />, section: 'Comunicação', roles: ['Administrador'] },
+  { path: '/documentos', label: 'Documentos', icon: <FolderOpen size={16} />, section: 'Comunicação', roles: ['Administrador'] },
 
   // Admin
   { path: '/configuracoes', label: 'Configurações', icon: <Settings size={16} />, section: 'Admin', roles: ['Administrador'] },
