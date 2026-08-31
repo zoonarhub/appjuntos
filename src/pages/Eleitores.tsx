@@ -53,7 +53,8 @@ const Eleitores: React.FC = () => {
     setLoading(true);
     let query = supabase.from('eleitores').select('*').order('created_at', { ascending: false });
     
-    if (dbUser?.role !== 'Admin') {
+    const isAdmin = dbUser?.role === 'Admin' || dbUser?.role === 'Administrador';
+    if (!isAdmin) {
       query = query.eq('indicado_por', dbUser?.id);
     }
     
@@ -231,8 +232,7 @@ const Eleitores: React.FC = () => {
                 <th>Intenção</th>
                 <th>Localização</th>
                 <th>Título</th>
-                <th>Origem</th>
-                {dbUser?.role === 'Admin' && <th>Ações</th>}
+                        {(dbUser?.role === 'Admin' || dbUser?.role === 'Administrador') && <th>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -291,7 +291,7 @@ const Eleitores: React.FC = () => {
                         {e.origem === 'landing' ? '🔗 Landing' : '✏️ Manual'}
                       </span>
                     </td>
-                    {dbUser?.role === 'Admin' && (
+                    {(dbUser?.role === 'Admin' || dbUser?.role === 'Administrador') && (
                       <td>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button className="btn btn-ghost btn-sm btn-icon" onClick={(ev) => { ev.stopPropagation(); openEdit(e, ev); }}><Edit2 size={14} /></button>

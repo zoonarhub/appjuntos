@@ -54,7 +54,8 @@ const Liderancas: React.FC = () => {
     setLoading(true);
     let query = supabase.from('liderancas').select('*').order('created_at', { ascending: false });
     
-    if (dbUser?.role !== 'Admin') {
+    const isAdmin = dbUser?.role === 'Admin' || dbUser?.role === 'Administrador';
+    if (!isAdmin) {
       query = query.eq('indicado_por', dbUser?.id);
     }
     
@@ -227,7 +228,7 @@ const Liderancas: React.FC = () => {
                 <th>Região / Bairro</th>
                 <th>Votos / Meta</th>
                 <th>Status</th>
-                {dbUser?.role === 'Admin' && <th>Ações</th>}
+                 {(dbUser?.role === 'Admin' || dbUser?.role === 'Administrador') && <th>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -251,7 +252,7 @@ const Liderancas: React.FC = () => {
                       {p.status}
                     </span>
                   </td>
-                  {dbUser?.role === 'Admin' && (
+                  {(dbUser?.role === 'Admin' || dbUser?.role === 'Administrador') && (
                     <td onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn btn-ghost btn-sm btn-icon" onClick={() => { setSelectedPerson(p); setIsEditing(false); setShowModal(true); }}><Eye size={14} /></button>
