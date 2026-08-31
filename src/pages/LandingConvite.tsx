@@ -83,7 +83,7 @@ const LandingConvite: React.FC = () => {
         .from('coordenadores')
         .select('id, nome, tipo, bairro, regiao, total_indicados')
         .eq('link_token', token)
-        .single();
+        .maybeSingle();
 
       if (coordByToken) {
         setConvidador(coordByToken);
@@ -91,13 +91,13 @@ const LandingConvite: React.FC = () => {
         return;
       }
 
-      // 2. If token is a UUID, search coordenadores by id
+      // 2. If token is a UUID, search coordenadores by id or usuario_id
       if (isUUID) {
         const { data: coordById } = await supabase
           .from('coordenadores')
           .select('id, nome, tipo, bairro, regiao, total_indicados')
-          .eq('id', token)
-          .single();
+          .or(`id.eq.${token},usuario_id.eq.${token}`)
+          .maybeSingle();
 
         if (coordById) {
           setConvidador(coordById);
@@ -109,12 +109,12 @@ const LandingConvite: React.FC = () => {
       // 3. Search usuarios by link_token
       const { data: usr } = await supabase
         .from('usuarios')
-        .select('id, nome, perfil, bairro')
+        .select('id, nome, role, bairro')
         .eq('link_token', token)
-        .single();
+        .maybeSingle();
 
       if (usr) {
-        setConvidador({ ...usr, tipo: usr.perfil || 'Liderança' });
+        setConvidador({ ...usr, tipo: usr.role || 'Liderança' });
         setLoadingConvidador(false);
         return;
       }
@@ -123,12 +123,12 @@ const LandingConvite: React.FC = () => {
       if (isUUID) {
         const { data: usrById } = await supabase
           .from('usuarios')
-          .select('id, nome, perfil, bairro')
+          .select('id, nome, role, bairro')
           .eq('id', token)
-          .single();
+          .maybeSingle();
 
         if (usrById) {
-          setConvidador({ ...usrById, tipo: usrById.perfil || 'Liderança' });
+          setConvidador({ ...usrById, tipo: usrById.role || 'Liderança' });
           setLoadingConvidador(false);
           return;
         }
@@ -139,7 +139,7 @@ const LandingConvite: React.FC = () => {
         .from('liderancas')
         .select('id, nome, tipo, bairro, regiao')
         .eq('link_token', token)
-        .single();
+        .maybeSingle();
 
       if (liderByToken) {
         setConvidador(liderByToken);
@@ -152,7 +152,7 @@ const LandingConvite: React.FC = () => {
           .from('liderancas')
           .select('id, nome, tipo, bairro, regiao')
           .eq('id', token)
-          .single();
+          .maybeSingle();
 
         if (liderById) {
           setConvidador(liderById);
