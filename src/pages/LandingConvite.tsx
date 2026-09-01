@@ -116,7 +116,17 @@ const LandingConvite: React.FC = () => {
         .maybeSingle();
 
       if (usr) {
-        setConvidador({ ...usr, tipo: usr.role || 'Liderança' });
+        // Check if this user has a linked coordenador record
+        const { data: linkedCoord } = await supabase
+          .from('coordenadores')
+          .select('id, nome, tipo, bairro, regiao, total_indicados')
+          .eq('usuario_id', usr.id)
+          .maybeSingle();
+        if (linkedCoord) {
+          setConvidador(linkedCoord);
+        } else {
+          setConvidador({ ...usr, tipo: usr.role || 'Liderança' });
+        }
         setLoadingConvidador(false);
         return;
       }
@@ -130,13 +140,23 @@ const LandingConvite: React.FC = () => {
           .maybeSingle();
 
         if (usrById) {
-          setConvidador({ ...usrById, tipo: usrById.role || 'Liderança' });
+          // Check if this user has a linked coordenador record
+          const { data: linkedCoord } = await supabase
+            .from('coordenadores')
+            .select('id, nome, tipo, bairro, regiao, total_indicados')
+            .eq('usuario_id', usrById.id)
+            .maybeSingle();
+          if (linkedCoord) {
+            setConvidador(linkedCoord);
+          } else {
+            setConvidador({ ...usrById, tipo: usrById.role || 'Liderança' });
+          }
           setLoadingConvidador(false);
           return;
         }
       }
 
-      // 5. Search liderancas by link_token or id
+      // 5. Search liderancas by link_token
       const { data: liderByToken } = await supabase
         .from('liderancas')
         .select('id, nome, tipo, bairro, regiao')
@@ -149,6 +169,7 @@ const LandingConvite: React.FC = () => {
         return;
       }
 
+      // 6. If token is a UUID, search liderancas by id
       if (isUUID) {
         const { data: liderById } = await supabase
           .from('liderancas')

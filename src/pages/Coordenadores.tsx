@@ -63,7 +63,34 @@ const Coordenadores: React.FC = () => {
     
     const { data, error } = await query;
     if (!error && data) {
-      setCoordenadores(data);
+      // Fetch real votos count from eleitores CRM
+      const coordIds = data.map((c: any) => c.id).filter(Boolean);
+      const userIds = data.map((c: any) => c.usuario_id).filter(Boolean);
+      const allIds = [...new Set([...coordIds, ...userIds])];
+      
+      let votosMap: Record<string, number> = {};
+      if (allIds.length > 0) {
+        const { data: eleitores } = await supabase
+          .from('eleitores')
+          .select('indicado_por')
+          .in('indicado_por', allIds);
+        
+        if (eleitores) {
+          eleitores.forEach((e: any) => {
+            if (e.indicado_por) {
+              votosMap[e.indicado_por] = (votosMap[e.indicado_por] || 0) + 1;
+            }
+          });
+        }
+      }
+      
+      // Merge votos count into coordenadores data
+      const enriched = data.map((c: any) => ({
+        ...c,
+        votos: (votosMap[c.id] || 0) + (c.usuario_id ? (votosMap[c.usuario_id] || 0) : 0),
+      }));
+      
+      setCoordenadores(enriched);
     }
     setLoading(false);
   };
@@ -323,7 +350,7 @@ const Coordenadores: React.FC = () => {
                       </div>
                       <div className="stat-block">
                         <div className="stat-block-value" style={{ color: 'var(--success)' }}>{selectedPerson.votos || 0}</div>
-                        <div className="stat-block-label">Votos Confirmados</div>
+                        <div className="stat-block-label">Eleitores Indicados (CRM)</div>
                       </div>
                     </div>
                   </div>

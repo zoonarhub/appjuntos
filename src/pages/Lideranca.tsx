@@ -61,7 +61,32 @@ const Liderancas: React.FC = () => {
     
     const { data, error } = await query;
     if (!error && data) {
-      setPessoas(data);
+      // Fetch real votos count from eleitores CRM
+      const liderIds = data.map((l: any) => l.id).filter(Boolean);
+      
+      let votosMap: Record<string, number> = {};
+      if (liderIds.length > 0) {
+        const { data: eleitores } = await supabase
+          .from('eleitores')
+          .select('indicado_por')
+          .in('indicado_por', liderIds);
+        
+        if (eleitores) {
+          eleitores.forEach((e: any) => {
+            if (e.indicado_por) {
+              votosMap[e.indicado_por] = (votosMap[e.indicado_por] || 0) + 1;
+            }
+          });
+        }
+      }
+      
+      // Merge votos count into liderancas data
+      const enriched = data.map((l: any) => ({
+        ...l,
+        votos: votosMap[l.id] || 0,
+      }));
+      
+      setPessoas(enriched);
     }
     setLoading(false);
   };
@@ -316,7 +341,7 @@ const Liderancas: React.FC = () => {
                       </div>
                       <div className="stat-block">
                         <div className="stat-block-value" style={{ color: 'var(--success)' }}>{selectedPerson.votos || 0}</div>
-                        <div className="stat-block-label">Votos Confirmados</div>
+                        <div className="stat-block-label">Eleitores Indicados (CRM)</div>
                       </div>
                     </div>
                   </div>
