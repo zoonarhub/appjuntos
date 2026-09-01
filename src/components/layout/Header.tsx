@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Bell, Sun, Moon, LogOut, User, Settings, ChevronRight, Wifi, WifiOff } from 'lucide-react';
+import { Search, Bell, Sun, Moon, LogOut, User, Settings, ChevronRight, Wifi, WifiOff, Menu } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { supabase } from '../../lib/supabase';
@@ -29,9 +29,10 @@ const ROUTE_TITLES: Record<string, string> = {
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
+  onMenuClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
+export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed, onMenuClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { dbUser, signOut, theme, toggleTheme } = useAuth();
@@ -66,16 +67,23 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
 
   return (
     <header className={`header ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* Breadcrumb */}
-      <div className="header-breadcrumb">
-        <h1 className="header-breadcrumb-title">{title}</h1>
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
-          • {dateStr}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Mobile Menu Toggle */}
+        <button className="mobile-menu-btn" onClick={onMenuClick}>
+          <Menu size={20} />
+        </button>
+
+        {/* Breadcrumb */}
+        <div className="header-breadcrumb">
+          <h1 className="header-breadcrumb-title">{title}</h1>
+          <span className="header-date" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+            • {dateStr}
+          </span>
+        </div>
       </div>
 
       {/* Search */}
-      <div className="header-search">
+      <div className="header-search mobile-hidden">
         <Search size={14} color="var(--text-tertiary)" />
         <input placeholder="Buscar eleitores, coordenadores..." />
         <span style={{ fontSize: 11, color: 'var(--text-tertiary)', background: 'var(--bg-overlay)', padding: '2px 6px', borderRadius: 4 }}>⌘K</span>

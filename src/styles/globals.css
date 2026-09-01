@@ -1359,25 +1359,67 @@ tbody td {
 /* ========================================
    RESPONSIVE
    ======================================== */
+.mobile-menu-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: calc(var(--z-sidebar) - 1);
+  animation: fadeIn var(--transition-fast) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 1200px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 900px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.mobile-open { transform: translateX(0); }
-  .main-content { margin-left: 0; }
-  .header { left: 0; }
+  .sidebar { 
+    transform: translateX(-100%); 
+    width: 260px !important;
+  }
+  .sidebar.mobile-open { 
+    transform: translateX(0); 
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar-overlay {
+    display: block;
+  }
+  .main-content { margin-left: 0 !important; }
+  .header { left: 0 !important; width: 100% !important; padding: 0 var(--space-md); }
+  .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .page-container { padding: var(--space-md); padding-top: calc(var(--header-height) + var(--space-md)); }
 }
 
 @media (max-width: 600px) {
   .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
-  .grid-cards { grid-template-columns: repeat(2, 1fr); }
-  .page-header { flex-direction: column; }
+  .grid-cards { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: var(--space-md); }
   .filter-bar { flex-direction: column; }
-  .header-search { display: none; }
+  .mobile-hidden { display: none !important; }
+  .header-date { display: none !important; }
+  
+  /* Make tables scrollable horizontally on mobile */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
 }
 
 /* ========================================

@@ -56,10 +56,12 @@ const navItems: NavItem[] = [
 
 interface SidebarProps {
   collapsed: boolean;
+  mobileOpen?: boolean;
   onToggle: () => void;
+  onCloseMobile?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ collapsed, mobileOpen, onToggle, onCloseMobile }) => {
   const location = useLocation();
   const { dbUser } = useAuth();
   const userRole = (dbUser?.role || 'Liderança').trim().toLowerCase();
@@ -78,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const sections = Array.from(new Set(visibleItems.map(i => i.section)));
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">CR</div>
@@ -103,6 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  onClick={onCloseMobile}
                   className={({ isActive }) =>
                     `sidebar-item ${isActive ? 'active' : ''}`
                   }
