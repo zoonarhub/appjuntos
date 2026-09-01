@@ -16,13 +16,45 @@ const Ranking: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       const [{ data: coordenadoresRes }, { data: nucleosRes }, { data: projetosRes }, { data: turmasRes }] = await Promise.all([
-        supabase.from('coordenadores').select('*').order('votos', { ascending: false }),
+        supabase.from('coordenadores').select('*'),
         supabase.from('nucleos').select('*').order('created_at', { ascending: false }),
         supabase.from('projetos').select('*').order('created_at', { ascending: false }),
         supabase.from('turmas').select('*').order('created_at', { ascending: false }),
       ]);
 
-      setCoordenadoresData(coordenadoresRes || []);
+      if (coordenadoresRes) {
+        // Fetch real votos count from eleitores CRM
+        const coordIds = coordenadoresRes.map((c: any) => c.id).filter(Boolean);
+        const userIds = coordenadoresRes.map((c: any) => c.usuario_id).filter(Boolean);
+        const allIds = [...new Set([...coordIds, ...userIds])];
+        
+        let votosMap: Record<string, number> = {};
+        if (allIds.length > 0) {
+          const { data: eleitores } = await supabase
+            .from('eleitores')
+            .select('indicado_por')
+            .in('indicado_por', allIds);
+          
+          if (eleitores) {
+            eleitores.forEach((e: any) => {
+              if (e.indicado_por) {
+                votosMap[e.indicado_por] = (votosMap[e.indicado_por] || 0) + 1;
+              }
+            });
+          }
+        }
+        
+        // Merge votos count into coordenadores data
+        const enriched = coordenadoresRes.map((c: any) => ({
+          ...c,
+          votos: (votosMap[c.id] || 0) + (c.usuario_id ? (votosMap[c.usuario_id] || 0) : 0),
+        }));
+
+        setCoordenadoresData(enriched || []);
+      } else {
+        setCoordenadoresData([]);
+      }
+
       setNucleosData(nucleosRes || []);
       setProjetosData(projetosRes || []);
       setTurmasData(turmasRes || []);

@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { Download, Filter, TrendingUp, BarChart3, PieChart as PieIcon } from 'lucide-react';
-import { dashboardStats, eleitores, coordenadores, eventos } from '../data/mock';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+import { supabase } from '../lib/supabase';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -18,22 +21,143 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
   );
 };
 
-// Build age distribution
-const faixasEtarias = [
-  { faixa: '18-24', homens: eleitores.filter(e => e.idade >= 18 && e.idade <= 24 && e.sexo === 'M').length, mulheres: eleitores.filter(e => e.idade >= 18 && e.idade <= 24 && e.sexo === 'F').length },
-  { faixa: '25-34', homens: eleitores.filter(e => e.idade >= 25 && e.idade <= 34 && e.sexo === 'M').length, mulheres: eleitores.filter(e => e.idade >= 25 && e.idade <= 34 && e.sexo === 'F').length },
-  { faixa: '35-44', homens: eleitores.filter(e => e.idade >= 35 && e.idade <= 44 && e.sexo === 'M').length, mulheres: eleitores.filter(e => e.idade >= 35 && e.idade <= 44 && e.sexo === 'F').length },
-  { faixa: '45-59', homens: eleitores.filter(e => e.idade >= 45 && e.idade <= 59 && e.sexo === 'M').length, mulheres: eleitores.filter(e => e.idade >= 45 && e.idade <= 59 && e.sexo === 'F').length },
-  { faixa: '60+', homens: eleitores.filter(e => e.idade >= 60 && e.sexo === 'M').length, mulheres: eleitores.filter(e => e.idade >= 60 && e.sexo === 'F').length },
-];
-
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-import { useNotifications } from '../contexts/NotificationContext';
-
 const BI: React.FC = () => {
   const [periodoFilter, setPeriodoFilter] = useState('7d');
   const { addNotification } = useNotifications();
+  const [loading, setLoading] = useState(true);
+
+  // Data states
+  const [kpis, setKpis] = useState({
+    taxaConfirmacao: 0,
+    ticketMedio: 0,
+    custoPorEleitor: 'R$ 4,20', // Mantemos fixo ou calculamos se houver campo de custo
+    engajamentoFamiliar: 0,
+  });
+  
+  const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
+  const [porRegiao, setPorRegiao] = useState<any[]>([]);
+  const [faixasEtarias, setFaixasEtarias] = useState<any[]>([]);
+  const [funil, setFunil] = useState<any[]>([]);
+
+  const fetchBIData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch data
+      const [{ data: eleitores }, { data: coordenadores }, { data: liderancas }, { data: eventos }, { data: visitas }] = await Promise.all([
+        supabase.from('eleitores').select('id, created_at, confirmou_voto, bairro, data_nascimento, sexo'),
+        supabase.from('coordenadores').select('id, created_at, bairro'),
+        supabase.from('liderancas').select('id, created_at'),
+        supabase.from('eventos').select('id, created_at'),
+        supabase.from('visitas').select('id, created_at'),
+      ]);
+
+      const eleitoresList = eleitores || [];
+      const coordenadoresList = coordenadores || [];
+      
+      const totalEleitores = eleitoresList.length;
+      const totalCoordenadores = coordenadoresList.length;
+      const confirmados = eleitoresList.filter(e => e.confirmou_voto === 'sim').length;
+      
+      // KPIs
+      setKpis({
+        taxaConfirmacao: totalEleitores > 0 ? Math.round((confirmados / totalEleitores) * 100) : 0,
+        ticketMedio: totalCoordenadores > 0 ? Math.round(totalEleitores / totalCoordenadores) : 0,
+        custoPorEleitor: 'R$ 4,20', // Mantendo estático como estimativa
+        engajamentoFamiliar: Math.round(totalEleitores * 1.5), // Estimativa de 1.5 pessoas por familia
+      });
+
+      // Evolução Mensal (últimos 6 meses)
+      const mesesLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      const now = new Date();
+      const monthMap: Record<string, any> = {};
+      
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        monthMap[key] = { mes: mesesLabels[d.getMonth()], eleitores: 0, eventos: 0, visitas: 0 };
+      }
+
+      const mapByDate = (list: any[], type: string) => {
+        list.forEach(item => {
+          if (!item.created_at) return;
+          const d = new Date(item.created_at);
+          const key = `${d.getFullYear()}-${d.getMonth()}`;
+          if (monthMap[key]) {
+            monthMap[key][type]++;
+          }
+        });
+      };
+
+      mapByDate(eleitoresList, 'eleitores');
+      mapByDate(eventos || [], 'eventos');
+      mapByDate(visitas || [], 'visitas');
+
+      setEvolucaoMensal(Object.values(monthMap));
+
+      // Distribuição por Região
+      const regiaoMap: Record<string, { eleitores: number, coordenadores: number }> = {};
+      eleitoresList.forEach(e => {
+        if (!e.bairro) return;
+        if (!regiaoMap[e.bairro]) regiaoMap[e.bairro] = { eleitores: 0, coordenadores: 0 };
+        regiaoMap[e.bairro].eleitores++;
+      });
+      coordenadoresList.forEach(c => {
+        if (!c.bairro) return;
+        if (!regiaoMap[c.bairro]) regiaoMap[c.bairro] = { eleitores: 0, coordenadores: 0 };
+        regiaoMap[c.bairro].coordenadores++;
+      });
+
+      const regiaoArr = Object.entries(regiaoMap)
+        .map(([regiao, data]) => ({ regiao, ...data }))
+        .sort((a, b) => b.eleitores - a.eleitores)
+        .slice(0, 8);
+      setPorRegiao(regiaoArr);
+
+      // Faixas Etárias
+      const idades = {
+        '18-24': { homens: 0, mulheres: 0 },
+        '25-34': { homens: 0, mulheres: 0 },
+        '35-44': { homens: 0, mulheres: 0 },
+        '45-59': { homens: 0, mulheres: 0 },
+        '60+': { homens: 0, mulheres: 0 },
+      };
+
+      eleitoresList.forEach(e => {
+        if (!e.data_nascimento || !e.sexo) return;
+        
+        // Calcular idade (aproximação simples)
+        const diffMs = Date.now() - new Date(e.data_nascimento).getTime();
+        const ageDate = new Date(diffMs); 
+        const idade = Math.abs(ageDate.getUTCFullYear() - 1970);
+        
+        const sexo = e.sexo === 'Masculino' || e.sexo === 'M' ? 'homens' : 'mulheres';
+
+        if (idade >= 18 && idade <= 24) idades['18-24'][sexo]++;
+        else if (idade >= 25 && idade <= 34) idades['25-34'][sexo]++;
+        else if (idade >= 35 && idade <= 44) idades['35-44'][sexo]++;
+        else if (idade >= 45 && idade <= 59) idades['45-59'][sexo]++;
+        else if (idade >= 60) idades['60+'][sexo]++;
+      });
+
+      setFaixasEtarias(Object.entries(idades).map(([faixa, vals]) => ({ faixa, ...vals })));
+
+      // Funil
+      setFunil([
+        { etapa: 'Total Contatos (Estimado)', valor: totalEleitores * 3 },
+        { etapa: 'Cadastros Realizados', valor: totalEleitores },
+        { etapa: 'Votos Confirmados', valor: confirmados },
+      ]);
+
+    } catch (error) {
+      console.error('Error fetching BI data', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBIData();
+  }, [fetchBIData, periodoFilter]); // Recarregar se mudar o filtro no futuro
 
   const handleExportPDF = async () => {
     const element = document.getElementById('bi-content');
@@ -49,19 +173,23 @@ const BI: React.FC = () => {
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save('bi-coordena-rio.pdf');
+      pdf.save(`bi-coordena-rio-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
       addNotification('PDF exportado com sucesso.', 'success');
     } catch (error) {
       addNotification('Erro ao exportar PDF.', 'error');
     }
   };
 
+  if (loading) {
+    return <div style={{ padding: 24, color: 'var(--text-tertiary)' }}>Processando dados de BI...</div>;
+  }
+
   return (
     <div id="bi-content">
       <div className="page-header" data-html2canvas-ignore="true">
         <div>
           <h1 className="page-title">Business Intelligence</h1>
-          <p className="page-subtitle">Análise avançada de dados eleitorais e campanhas</p>
+          <p className="page-subtitle">Análise avançada de dados eleitorais e campanhas baseada no CRM</p>
         </div>
         <div className="page-actions">
           <select className="form-select" style={{ width: 140 }} value={periodoFilter} onChange={e => setPeriodoFilter(e.target.value)}>
@@ -71,17 +199,16 @@ const BI: React.FC = () => {
             <option value="all">Todo período</option>
           </select>
           <button className="btn btn-secondary btn-sm" onClick={handleExportPDF}><Download size={14} /> Exportar PDF</button>
-          <button className="btn btn-primary btn-sm"><Download size={14} /> Excel</button>
         </div>
       </div>
 
       {/* KPI Row */}
       <div className="grid-4 mb-lg" style={{ marginBottom: 'var(--space-lg)' }}>
         {[
-          { label: 'Taxa de Confirmação', value: `${Math.round((dashboardStats.confirmacaoVotos[0].value / dashboardStats.totalEleitores) * 100)}%`, desc: 'dos eleitores confirmados', color: '#10B981' },
-          { label: 'Ticket Médio Votos/Coord.', value: Math.round(dashboardStats.projecaoVotos / dashboardStats.totalCoordenadores).toLocaleString('pt-BR'), desc: 'votos por coordenador', color: '#6366F1' },
-          { label: 'Custo por Eleitor', value: 'R$ 4,20', desc: 'estimado por contato', color: '#F59E0B' },
-          { label: 'Engajamento Familiar', value: `+${eleitores.reduce((s, e) => s + e.votosFamilia, 0).toLocaleString('pt-BR')}`, desc: 'votos familiares projetados', color: '#8B5CF6' },
+          { label: 'Taxa de Confirmação', value: `${kpis.taxaConfirmacao}%`, desc: 'dos eleitores confirmados', color: '#10B981' },
+          { label: 'Ticket Médio Votos', value: kpis.ticketMedio.toLocaleString('pt-BR'), desc: 'votos reais por coordenador', color: '#6366F1' },
+          { label: 'Custo por Eleitor', value: kpis.custoPorEleitor, desc: 'estimado por contato', color: '#F59E0B' },
+          { label: 'Engajamento Familiar', value: `+${kpis.engajamentoFamiliar.toLocaleString('pt-BR')}`, desc: 'votos familiares projetados', color: '#8B5CF6' },
         ].map((s, i) => (
           <div key={i} className="card animate-slide-up" style={{ animationDelay: `${i * 80}ms` }}>
             <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{s.label}</div>
@@ -98,11 +225,11 @@ const BI: React.FC = () => {
           <div className="chart-header">
             <div>
               <div className="chart-title">Crescimento de Cadastros</div>
-              <div className="chart-subtitle">Evolução mensal de eleitores, eventos e visitas</div>
+              <div className="chart-subtitle">Evolução mensal de eleitores, eventos e visitas (CRM)</div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={dashboardStats.evolucaoMensal}>
+            <LineChart data={evolucaoMensal}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis dataKey="mes" tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -120,11 +247,11 @@ const BI: React.FC = () => {
           <div className="chart-header">
             <div>
               <div className="chart-title">Eleitores por Região</div>
-              <div className="chart-subtitle">Concentração geográfica</div>
+              <div className="chart-subtitle">Concentração geográfica no CRM</div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={dashboardStats.porRegiao}>
+            <BarChart data={porRegiao}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis dataKey="regiao" tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -143,7 +270,7 @@ const BI: React.FC = () => {
           <div className="chart-header">
             <div>
               <div className="chart-title">Distribuição por Faixa Etária</div>
-              <div className="chart-subtitle">Homens vs. Mulheres por idade</div>
+              <div className="chart-subtitle">Homens vs. Mulheres por idade (CRM)</div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
@@ -167,44 +294,37 @@ const BI: React.FC = () => {
               <div className="chart-subtitle">Taxa de engajamento por etapa</div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
-            {dashboardStats.funil.map((f, i) => {
-              const pct = Math.round((f.valor / dashboardStats.funil[0].valor) * 100);
-              const colors = ['#6366F1', '#8B5CF6', '#A78BFA', '#10B981', '#059669'];
-              const prevPct = i > 0 ? Math.round((dashboardStats.funil[i - 1].valor) / dashboardStats.funil[0].valor * 100) : 100;
-              const convPct = i > 0 ? Math.round((f.valor / dashboardStats.funil[i - 1].valor) * 100) : 100;
-              return (
-                <div key={i}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[i] }} />
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{f.etapa}</span>
+          {funil.length > 0 && funil[0].valor > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+              {funil.map((f, i) => {
+                const pct = Math.round((f.valor / funil[0].valor) * 100);
+                const colors = ['#6366F1', '#8B5CF6', '#10B981'];
+                const convPct = i > 0 && funil[i - 1].valor > 0 ? Math.round((f.valor / funil[i - 1].valor) * 100) : 100;
+                return (
+                  <div key={i}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[i] }} />
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{f.etapa}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <span style={{ color: 'var(--text-tertiary)' }}>{f.valor.toLocaleString('pt-BR')}</span>
+                        <span style={{ color: colors[i], fontWeight: 700 }}>{pct}%</span>
+                        {i > 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>({convPct}% conv.)</span>}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      <span style={{ color: 'var(--text-tertiary)' }}>{f.valor.toLocaleString('pt-BR')}</span>
-                      <span style={{ color: colors[i], fontWeight: 700 }}>{pct}%</span>
-                      {i > 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>({convPct}% conv.)</span>}
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{ width: `${Math.min(pct, 100)}%`, background: colors[i] }} />
                     </div>
                   </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${pct}%`, background: colors[i] }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Export Buttons */}
-      <div className="card animate-fade-in" style={{ padding: 'var(--space-md)' }}>
-        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginRight: 8 }}>Exportar para:</span>
-          {['PDF', 'Excel (XLSX)', 'CSV', 'Power BI', 'Looker Studio'].map(fmt => (
-            <button key={fmt} className="btn btn-secondary btn-sm">
-              <Download size={13} /> {fmt}
-            </button>
-          ))}
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+              Aguardando os primeiros cadastros para montar o funil.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -212,3 +332,4 @@ const BI: React.FC = () => {
 };
 
 export default BI;
+

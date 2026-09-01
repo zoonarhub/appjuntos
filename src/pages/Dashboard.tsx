@@ -146,12 +146,32 @@ const Dashboard: React.FC = () => {
       ]);
 
       const [eleitoresData, coordData, liderData] = await Promise.all([
-        safeSelect('eleitores', 'confirmou_voto, bairro, created_at'),
-        safeSelect('coordenadores', 'id, nome, regiao, tipo, votos, meta', { order: 'votos', ascending: false, limit: 10 }),
-        safeSelect('liderancas', 'id, nome, regiao, tipo, votos, meta'),
+        safeSelect('eleitores', 'confirmou_voto, bairro, created_at, indicado_por'),
+        safeSelect('coordenadores', 'id, nome, regiao, tipo, meta, usuario_id'),
+        safeSelect('liderancas', 'id, nome, regiao, tipo, meta'),
       ]);
 
-      const metaVotos = [...coordData, ...liderData].reduce((sum: number, item: any) => sum + Number(item.meta || 0), 0);
+      // Build votosMap from eleitores indicado_por
+      const votosMap: Record<string, number> = {};
+      eleitoresData.forEach((e: any) => {
+        if (e.indicado_por) {
+          votosMap[e.indicado_por] = (votosMap[e.indicado_por] || 0) + 1;
+        }
+      });
+
+      // Enrich coordData with real votos
+      const enrichedCoord = coordData.map((c: any) => ({
+        ...c,
+        votos: (votosMap[c.id] || 0) + (c.usuario_id ? (votosMap[c.usuario_id] || 0) : 0),
+      }));
+
+      // Enrich liderData with real votos
+      const enrichedLider = liderData.map((l: any) => ({
+        ...l,
+        votos: votosMap[l.id] || 0,
+      }));
+
+      const metaVotos = [...enrichedCoord, ...enrichedLider].reduce((sum: number, item: any) => sum + Number(item.meta || 0), 0);
 
       setCounts({
         coordenadores: nCoord,
@@ -213,9 +233,9 @@ const Dashboard: React.FC = () => {
         setPorRegiao(regiaoArr);
       }
 
-      // Top coordenadores com dados reais
-      if (coordData.length > 0) {
-        const top = coordData
+      // Top coordenadores com dados reais do CRM
+      if (enrichedCoord.length > 0) {
+        const top = enrichedCoord
           .map((c: any) => ({
             ...c,
             votos: Number(c.votos || 0),
@@ -275,8 +295,10 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const projecaoVotos = Math.round(counts.eleitores * 1.4 + counts.liderancas * 5 + counts.coordenadores * 20);
-  const percentualAtingido = Math.min(Math.round((projecaoVotos / counts.metaVotos) * 100), 100);
+  // Projeção realista: no momento, igual ao número de eleitores reais cadastrados
+  // Pode ser ajustado futuramente para somar alguma expectativa das metas
+  const projecaoVotos = counts.eleitores;
+  const percentualAtingido = counts.metaVotos > 0 ? Math.min(Math.round((projecaoVotos / counts.metaVotos) * 100), 100) : 0;
 
   const metrics: MetricProps[] = [
     { label: 'Coordenadores', value: counts.coordenadores, icon: <UserCheck />, color: '#6366F1', delay: 'delay-1' },
